@@ -1,0 +1,126 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+@layer base {
+  :root {
+    --background: 0 0% 97%;
+    --foreground: 150 10% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 150 10% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 10% 15%;
+
+    --primary: 142 71% 35%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 145 30% 94%;
+    --secondary-foreground: 142 71% 25%;
+
+    --muted: 140 15% 95%;
+    --muted-foreground: 150 5% 45%;
+
+    --accent: 142 50% 92%;
+    --accent-foreground: 142 71% 25%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 140 10% 90%;
+    --input: 140 10% 88%;
+    --ring: 142 71% 35%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 150 10% 30%;
+    --sidebar-primary: 142 71% 35%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 142 50% 94%;
+    --sidebar-accent-foreground: 142 71% 25%;
+    --sidebar-border: 140 10% 92%;
+    --sidebar-ring: 142 71% 35%;
+
+    /* Custom tokens */
+    --agri-green: 142 71% 35%;
+    --agri-green-light: 142 50% 92%;
+    --agri-teal: 174 62% 40%;
+    --agri-blue: 199 89% 48%;
+    --agri-orange: 25 95% 53%;
+    --agri-amber: 38 92% 50%;
+    --agri-red: 0 84% 60%;
+    --agri-gradient: linear-gradient(135deg, hsl(142 71% 35%), hsl(174 62% 40%));
+    --agri-gradient-warm: linear-gradient(135deg, hsl(142 71% 35%), hsl(199 89% 48%));
+    --shadow-card: 0 1px 3px 0 rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.04);
+    --shadow-card-hover: 0 4px 12px 0 rgba(0,0,0,0.08);
+  }
+
+  .dark {
+    --background: 150 10% 8%;
+    --foreground: 0 0% 95%;
+    --card: 150 10% 12%;
+    --card-foreground: 0 0% 95%;
+    --popover: 150 10% 12%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 142 71% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 15% 18%;
+    --secondary-foreground: 142 50% 80%;
+    --muted: 150 10% 18%;
+    --muted-foreground: 150 5% 60%;
+    --accent: 150 15% 18%;
+    --accent-foreground: 142 50% 80%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 95%;
+    --border: 150 10% 20%;
+    --input: 150 10% 20%;
+    --ring: 142 71% 45%;
+    --sidebar-background: 150 10% 10%;
+    --sidebar-foreground: 0 0% 85%;
+    --sidebar-primary: 142 71% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 150 15% 18%;
+    --sidebar-accent-foreground: 142 50% 80%;
+    --sidebar-border: 150 10% 18%;
+    --sidebar-ring: 142 71% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: 'Inter', sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+}
+
+@layer utilities {
+  .agri-gradient {
+    background: linear-gradient(135deg, hsl(142 71% 35%), hsl(174 62% 40%));
+  }
+  .agri-gradient-warm {
+    background: linear-gradient(135deg, hsl(174 62% 40%), hsl(199 89% 48%));
+  }
+  .agri-gradient-text {
+    background: linear-gradient(135deg, hsl(142 71% 35%), hsl(174 62% 40%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .card-shadow {
+    box-shadow: 0 1px 3px 0 rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.04);
+  }
+  .card-shadow-hover {
+    box-shadow: 0 4px 12px 0 rgba(0,0,0,0.08);
+  }
+}
