@@ -124,3 +124,20 @@
     box-shadow: 0 4px 12px 0 rgba(0,0,0,0.08);
   }
 }
+
+/* Seamless Multilingual Styling */
+.goog-te-banner-frame.skiptranslate,
+.goog-te-banner-frame,
+#goog-gt-tt,
+.goog-te-balloon-frame {
+  display: none !important;
+}
+body {
+  top: 0px !important;
+}
+.skiptranslate iframe {
+  display: none !important;
+}
+#google_translate_element {
+  display: none !important;
+}

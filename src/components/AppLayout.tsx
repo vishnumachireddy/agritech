@@ -24,8 +24,15 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={toggleLanguage} className="p-2 rounded-lg hover:bg-muted text-muted-foreground text-xs font-semibold">
-            <Globe className="w-4 h-4" />
+          <button 
+            onClick={toggleLanguage} 
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-muted/60 hover:bg-muted text-xs font-medium transition-all shadow-xs"
+            title="Switch Language / భాష మార్చండి"
+          >
+            <Globe className="w-3.5 h-3.5 text-primary" />
+            <span className={language === "en" ? "font-bold text-primary" : "text-muted-foreground"}>English</span>
+            <span className="text-muted-foreground/40">|</span>
+            <span className={language === "te" ? "font-bold text-primary" : "text-muted-foreground"}>తెలుగు</span>
           </button>
           <button onClick={toggleTheme} className="p-2 rounded-lg hover:bg-muted text-muted-foreground">
             {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}

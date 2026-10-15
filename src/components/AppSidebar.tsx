@@ -5,6 +5,7 @@ import {
   Clock, Plane, ShieldCheck
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/hooks/useLanguage";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
@@ -27,6 +28,7 @@ const AppSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { t } = useLanguage();
 
   const handleLogout = async () => {
     await signOut();
@@ -48,7 +50,7 @@ const AppSidebar = () => {
                 }`}
             >
               <item.icon className="w-4 h-4" />
-              {item.label}
+              {t(item.label)}
               {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
             </NavLink>
           );
@@ -56,7 +58,7 @@ const AppSidebar = () => {
       </div>
       <Button variant="ghost" onClick={handleLogout} className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive mt-2">
         <LogOut className="w-4 h-4" />
-        Logout
+        {t("Logout")}
       </Button>
     </aside>
   );

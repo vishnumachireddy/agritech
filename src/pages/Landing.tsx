@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Leaf, Shield, TrendingUp, Users, ArrowRight, Sprout, Sun, Cpu, Zap } from 'lucide-react';
+import { Leaf, Shield, TrendingUp, Users, ArrowRight, Sprout, Sun, Cpu, Zap, Globe } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/hooks/useLanguage';
 import BgImage from '@/assets/BGIMG.png';
 
 const FeatureCard = ({ icon: Icon, title, description, delay }: { icon: any, title: string, description: string, delay: number }) => (
@@ -23,6 +24,7 @@ const FeatureCard = ({ icon: Icon, title, description, delay }: { icon: any, tit
 );
 
 const Landing = () => {
+    const { language, toggleLanguage, t } = useLanguage();
     const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
         e.preventDefault();
         const element = document.getElementById(id);
@@ -55,6 +57,16 @@ const Landing = () => {
                         <a href="#getting-started" onClick={(e) => scrollToSection(e, 'getting-started')} className="text-muted-foreground hover:text-foreground transition-colors">Get Started</a>
                     </div>
                     <div className="flex items-center gap-4">
+                        <button 
+                            onClick={toggleLanguage} 
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-card/60 hover:bg-accent text-xs font-medium transition-all shadow-xs"
+                            title="Switch Language / భాష మార్చండి"
+                        >
+                            <Globe className="w-3.5 h-3.5 text-primary" />
+                            <span className={language === "en" ? "font-bold text-primary" : "text-muted-foreground"}>English</span>
+                            <span className="text-muted-foreground/40">|</span>
+                            <span className={language === "te" ? "font-bold text-primary" : "text-muted-foreground"}>తెలుగు</span>
+                        </button>
                         <Link to="/auth/login">
                             <Button variant="ghost" className="hidden sm:inline-flex rounded-full">Sign In</Button>
                         </Link>

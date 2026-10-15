@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { locationData } from "@/data/locationData";
 import { API_BASE as GLOBAL_API_BASE } from "@/config";
+import { useLanguage } from "@/hooks/useLanguage";
 
 const API_BASE = `${GLOBAL_API_BASE}/crop-guidance`;
 
@@ -454,7 +455,15 @@ const TabMarketStrategy = () => {
 
 // 5) AI Advisory Chat Tab
 const TabChat = () => {
-  const [messages, setMessages] = useState<{ role: 'user' | 'bot', text: string }[]>([{ role: 'bot', text: 'Hello! I am the isolated Crop Guidance LLM. How can I help with your agriculture needs?' }]);
+  const { isTelugu } = useLanguage();
+  const [messages, setMessages] = useState<{ role: 'user' | 'bot', text: string }[]>([
+    { 
+      role: 'bot', 
+      text: isTelugu 
+        ? 'నమస్కారం! నేను పంటల సలహా AI సహాయకుడిని. మీ వ్యవసాయ సందేహాలు లేదా పంట సమస్యలను అడగండి.'
+        : 'Hello! I am the isolated Crop Guidance LLM. How can I help with your agriculture needs?' 
+    }
+  ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -467,17 +476,21 @@ const TabChat = () => {
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setLoading(true);
 
+    const outgoingMsg = isTelugu 
+      ? `${userMsg} (దయచేసి రైతులకు సులభంగా అర్థమయ్యే విధంగా సరళమైన తెలుగులో సమాధానం ఇవ్వండి)`
+      : userMsg;
+
     try {
       const res = await fetch(`${API_BASE}/chat`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg })
+        body: JSON.stringify({ message: outgoingMsg })
       });
       if (!res.ok) throw new Error("API request failed");
       const data = await res.json();
       setMessages(prev => [...prev, { role: 'bot', text: data.response }]);
     } catch (err: any) {
       toast.error(err.message);
-      setMessages(prev => [...prev, { role: 'bot', text: "Error connecting to backend." }]);
+      setMessages(prev => [...prev, { role: 'bot', text: isTelugu ? "సర్వర్ కనెక్ట్ చేయడంలో సమస్య ఏర్పడింది." : "Error connecting to backend." }]);
     } finally {
       setLoading(false);
     }
