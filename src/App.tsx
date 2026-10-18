@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { LanguageProvider } from "@/hooks/useLanguage";
+import { VoiceAssistantProvider } from "@/context/VoiceAssistantContext";
+import FloatingVoiceAssistant from "@/components/voice/FloatingVoiceAssistant";
 import RoleGuard from "@/components/RoleGuard";
 
 // Auth pages
@@ -73,45 +75,48 @@ const App = () => (
             }}
           >
             <AuthProvider>
-              <Routes>
-                {/* Public */}
-                <Route path="/" element={<Landing />} />
-                <Route path="/auth/login" element={<Login />} />
-                <Route path="/auth/register" element={<Register />} />
+              <VoiceAssistantProvider>
+                <FloatingVoiceAssistant />
+                <Routes>
+                  {/* Public */}
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/auth/login" element={<Login />} />
+                  <Route path="/auth/register" element={<Register />} />
 
-                {/* Farmer routes */}
-                <Route path="/farmer/dashboard" element={<FarmerRoute><Dashboard /></FarmerRoute>} />
-                <Route path="/farmer/crop-scanner" element={<FarmerRoute><CropScanner /></FarmerRoute>} />
-                <Route path="/farmer/govt-schemes" element={<FarmerRoute><GovtSchemes /></FarmerRoute>} />
-                <Route path="/farmer/weather" element={<FarmerRoute><Weather /></FarmerRoute>} />
-                <Route path="/farmer/demand-supply" element={<FarmerRoute><DemandSupply /></FarmerRoute>} />
-                <Route path="/farmer/market-insights" element={<FarmerRoute><MarketInsights /></FarmerRoute>} />
-                <Route path="/farmer/regional-insights" element={<FarmerRoute><RegionalInsights /></FarmerRoute>} />
-                <Route path="/farmer/irrigation" element={<FarmerRoute><Irrigation /></FarmerRoute>} />
-                <Route path="/farmer/fertilizer" element={<FarmerRoute><Fertilizer /></FarmerRoute>} />
-                <Route path="/farmer/crop-guidance" element={<FarmerRoute><CropGuidance /></FarmerRoute>} />
-                <Route path="/farmer/orders" element={<FarmerRoute><FarmerOrders /></FarmerRoute>} />
-                <Route path="/farmer/spray-booking" element={<FarmerRoute><DroneBooking /></FarmerRoute>} />
-                <Route path="/agri-chrono" element={<FarmerRoute><AgriChrono /></FarmerRoute>} />
+                  {/* Farmer routes */}
+                  <Route path="/farmer/dashboard" element={<FarmerRoute><Dashboard /></FarmerRoute>} />
+                  <Route path="/farmer/crop-scanner" element={<FarmerRoute><CropScanner /></FarmerRoute>} />
+                  <Route path="/farmer/govt-schemes" element={<FarmerRoute><GovtSchemes /></FarmerRoute>} />
+                  <Route path="/farmer/weather" element={<FarmerRoute><Weather /></FarmerRoute>} />
+                  <Route path="/farmer/demand-supply" element={<FarmerRoute><DemandSupply /></FarmerRoute>} />
+                  <Route path="/farmer/market-insights" element={<FarmerRoute><MarketInsights /></FarmerRoute>} />
+                  <Route path="/farmer/regional-insights" element={<FarmerRoute><RegionalInsights /></FarmerRoute>} />
+                  <Route path="/farmer/irrigation" element={<FarmerRoute><Irrigation /></FarmerRoute>} />
+                  <Route path="/farmer/fertilizer" element={<FarmerRoute><Fertilizer /></FarmerRoute>} />
+                  <Route path="/farmer/crop-guidance" element={<FarmerRoute><CropGuidance /></FarmerRoute>} />
+                  <Route path="/farmer/orders" element={<FarmerRoute><FarmerOrders /></FarmerRoute>} />
+                  <Route path="/farmer/spray-booking" element={<FarmerRoute><DroneBooking /></FarmerRoute>} />
+                  <Route path="/agri-chrono" element={<FarmerRoute><AgriChrono /></FarmerRoute>} />
 
-                {/* Consumer routes */}
-                <Route path="/consumer/dashboard" element={<ConsumerRoute><ConsumerDashboard /></ConsumerRoute>} />
-                <Route path="/consumer/farmers" element={<ConsumerRoute><FarmersDirectory /></ConsumerRoute>} />
-                <Route path="/consumer/market" element={<ConsumerRoute><AgriMarket /></ConsumerRoute>} />
-                <Route path="/consumer/marketplace" element={<ConsumerRoute><Marketplace /></ConsumerRoute>} />
-                <Route path="/consumer/demand" element={<ConsumerRoute><DemandTrends /></ConsumerRoute>} />
-                <Route path="/consumer/bulk" element={<ConsumerRoute><BulkOrders /></ConsumerRoute>} />
-                <Route path="/consumer/spray-bookings" element={<ConsumerRoute><ProviderBookings /></ConsumerRoute>} />
-                <Route path="/provider/spray-bookings" element={<ConsumerRoute><ProviderBookings /></ConsumerRoute>} />
-                <Route path="/consumer/traceability" element={<ConsumerRoute><Traceability /></ConsumerRoute>} />
-                <Route path="/consumer/orders" element={<ConsumerRoute><MyOrders /></ConsumerRoute>} />
-                <Route path="/consumer/orders/:orderId" element={<ConsumerRoute><OrderTracking /></ConsumerRoute>} />
-                <Route path="/consumer/profile" element={<ConsumerRoute><Profile /></ConsumerRoute>} />
-                <Route path="/farmer/profile" element={<FarmerRoute><Profile /></FarmerRoute>} />
-                <Route path="/profile" element={<RoleGuard allowedRole={undefined as any}><Profile /></RoleGuard>} />
+                  {/* Consumer routes */}
+                  <Route path="/consumer/dashboard" element={<ConsumerRoute><ConsumerDashboard /></ConsumerRoute>} />
+                  <Route path="/consumer/farmers" element={<ConsumerRoute><FarmersDirectory /></ConsumerRoute>} />
+                  <Route path="/consumer/market" element={<ConsumerRoute><AgriMarket /></ConsumerRoute>} />
+                  <Route path="/consumer/marketplace" element={<ConsumerRoute><Marketplace /></ConsumerRoute>} />
+                  <Route path="/consumer/demand" element={<ConsumerRoute><DemandTrends /></ConsumerRoute>} />
+                  <Route path="/consumer/bulk" element={<ConsumerRoute><BulkOrders /></ConsumerRoute>} />
+                  <Route path="/consumer/spray-bookings" element={<ConsumerRoute><ProviderBookings /></ConsumerRoute>} />
+                  <Route path="/provider/spray-bookings" element={<ConsumerRoute><ProviderBookings /></ConsumerRoute>} />
+                  <Route path="/consumer/traceability" element={<ConsumerRoute><Traceability /></ConsumerRoute>} />
+                  <Route path="/consumer/orders" element={<ConsumerRoute><MyOrders /></ConsumerRoute>} />
+                  <Route path="/consumer/orders/:orderId" element={<ConsumerRoute><OrderTracking /></ConsumerRoute>} />
+                  <Route path="/consumer/profile" element={<ConsumerRoute><Profile /></ConsumerRoute>} />
+                  <Route path="/farmer/profile" element={<FarmerRoute><Profile /></FarmerRoute>} />
+                  <Route path="/profile" element={<RoleGuard allowedRole={undefined as any}><Profile /></RoleGuard>} />
 
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </VoiceAssistantProvider>
             </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>

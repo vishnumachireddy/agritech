@@ -29,6 +29,7 @@ const OrderModal = ({ item, mode, userId, onClose }: OrderModalProps) => {
     if (!qtyNum || qtyNum <= 0) { toast.error("Enter a valid quantity"); return; }
 
     setSubmitting(true);
+    const orderId = `${mode === "bulk" ? "bulk" : "ord"}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
     if (mode === "buy") {
       try {
@@ -36,49 +37,105 @@ const OrderModal = ({ item, mode, userId, onClose }: OrderModalProps) => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            id: orderId,
             consumer_id: userId,
+            customer_id: userId,
             farmer_id: item.farmer_id,
+            farmer_name: item.farmer_name,
             crop_id: item.farmer_id,
             crop_name: item.crop_name,
             quantity: qtyNum,
             price_per_kg: item.expected_price,
             total_price: total,
             status: "pending",
+            region: item.region || "Andhra Pradesh",
           })
         });
         if (res.ok) {
           toast.success(`Order placed for ${qtyNum} kg of ${item.crop_name}!`);
-          onClose();
         } else {
           toast.success(`Order recorded for ${qtyNum} kg!`);
-          onClose();
         }
       } catch (err) {
         toast.success(`Order placed for ${qtyNum} kg of ${item.crop_name}!`);
+      } finally {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("supabase_db_change", { detail: { table: "orders", eventType: "INSERT" } }));
+        }
         onClose();
       }
     } else {
       try {
-        const res = await fetch(`${API_BASE}/bulk_requests`, {
+        // 1. Post to unified orders
+        await fetch(`${API_BASE}/orders`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            id: orderId,
             consumer_id: userId,
+            customer_id: userId,
+            farmer_id: item.farmer_id,
+            farmer_name: item.farmer_name,
+            crop_id: item.farmer_id,
+            crop_name: item.crop_name,
+            quantity: qtyNum,
+            price_per_kg: item.expected_price,
+            total_price: total,
+            status: "pending",
+            order_type: "bulk",
+            is_bulk: true,
+            bulk_order_id: orderId,
+            region: item.region || "Andhra Pradesh",
+          })
+        });
+
+        // 2. Post to bulk_orders table
+        await fetch(`${API_BASE}/bulk_orders`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: orderId,
+            order_id: orderId,
+            customer_id: userId,
+            consumer_id: userId,
+            farmer_id: item.farmer_id,
+            farmer_name: item.farmer_name,
+            crop_name: item.crop_name,
+            quantity_required: qtyNum,
+            total_committed: qtyNum,
+            unit: "kg",
+            region: item.region || "Andhra Pradesh",
+            expected_delivery_start: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
+            expected_delivery_end: new Date(Date.now() + 86400000 * 10).toISOString().split('T')[0],
+            status: "pending",
+            order_type: "bulk",
+            is_bulk: true,
+          })
+        });
+
+        // 3. Post to bulk_requests for compatibility
+        await fetch(`${API_BASE}/bulk_requests`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: orderId,
+            consumer_id: userId,
+            customer_id: userId,
             farmer_id: item.farmer_id,
             crop_id: item.farmer_id,
             quantity: qtyNum,
             status: "pending",
           })
         });
-        if (res.ok) {
-          toast.success(`Bulk request sent for ${qtyNum} kg!`);
-          onClose();
-        } else {
-          toast.success(`Bulk request recorded for ${qtyNum} kg!`);
-          onClose();
-        }
+
+        toast.success(`Bulk order placed for ${qtyNum} kg of ${item.crop_name}!`);
       } catch (err) {
-        toast.success(`Bulk request sent for ${qtyNum} kg!`);
+        toast.success(`Bulk order recorded for ${qtyNum} kg!`);
+      } finally {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("supabase_db_change", { detail: { table: "bulk_orders", eventType: "INSERT" } }));
+          window.dispatchEvent(new CustomEvent("supabase_db_change", { detail: { table: "orders", eventType: "INSERT" } }));
+        }
         onClose();
       }
     }

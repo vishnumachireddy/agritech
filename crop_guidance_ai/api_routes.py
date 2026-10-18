@@ -556,7 +556,9 @@ async def get_records(table: str, request: Request):
             filter_query = {}
             for k, v in query_params.items():
                 if k not in ("select", "order", "limit"):
-                    if "," in v:
+                    if k in ("consumer_id", "customer_id"):
+                        filter_query["$or"] = [{"consumer_id": v}, {"customer_id": v}]
+                    elif "," in v:
                         filter_query[k] = {"$in": v.split(",")}
                     else:
                         filter_query[k] = v
@@ -579,13 +581,17 @@ async def get_records(table: str, request: Request):
             print(f"MongoDB get_records fallback for table {table}: {e}")
 
     if not results and table in IN_MEMORY_TABLES:
-        mem_records = IN_MEMORY_TABLES[table]
+        mem_records = IN_MEMORY_TABLES.get(table, [])
         filtered = []
         for r in mem_records:
             match = True
             for k, v in query_params.items():
                 if k not in ("select", "order", "limit"):
-                    if str(r.get(k)) != str(v):
+                    if k in ("consumer_id", "customer_id"):
+                        if str(r.get("consumer_id")) != str(v) and str(r.get("customer_id")) != str(v):
+                            match = False
+                            break
+                    elif str(r.get(k)) != str(v):
                         match = False
                         break
             if match:
@@ -606,6 +612,12 @@ async def create_record(table: str, request: Request):
         
     data["created_at"] = datetime.utcnow().isoformat()
     
+    # Normalize consumer_id and customer_id
+    if "consumer_id" in data and "customer_id" not in data:
+        data["customer_id"] = data["consumer_id"]
+    elif "customer_id" in data and "consumer_id" not in data:
+        data["consumer_id"] = data["customer_id"]
+
     if is_mongo_online:
         try:
             collection = db.get_collection(table)
@@ -617,6 +629,65 @@ async def create_record(table: str, request: Request):
     record_copy = dict(data)
     record_copy.pop("_id", None)
     IN_MEMORY_TABLES[table].append(record_copy)
+
+    # Cross-sync bulk orders between tables
+    if table == "orders" and (data.get("order_type") == "bulk" or data.get("is_bulk")):
+        bulk_record = {
+            "id": data.get("bulk_order_id") or data["id"],
+            "order_id": data["id"],
+            "customer_id": data.get("consumer_id") or data.get("customer_id"),
+            "consumer_id": data.get("consumer_id") or data.get("customer_id"),
+            "farmer_id": data.get("farmer_id"),
+            "farmer_name": data.get("farmer_name", "Farmer"),
+            "crop_name": data.get("crop_name", "Bulk Crop"),
+            "quantity_required": data.get("quantity", 100),
+            "total_committed": data.get("quantity", 100),
+            "unit": "kg",
+            "region": data.get("region", "Andhra Pradesh"),
+            "status": data.get("status", "pending"),
+            "order_type": "bulk",
+            "is_bulk": True,
+            "created_at": data["created_at"]
+        }
+        if is_mongo_online:
+            try:
+                await db.get_collection("bulk_orders").update_one({"id": bulk_record["id"]}, {"$set": bulk_record}, upsert=True)
+            except Exception:
+                pass
+        IN_MEMORY_TABLES["bulk_orders"].append(bulk_record)
+        try:
+            await manager.broadcast("bulk_orders", "INSERT", bulk_record)
+        except Exception:
+            pass
+
+    elif table == "bulk_orders":
+        order_record = {
+            "id": data["id"],
+            "consumer_id": data.get("customer_id") or data.get("consumer_id"),
+            "customer_id": data.get("customer_id") or data.get("consumer_id"),
+            "farmer_id": data.get("farmer_id", "open-demand"),
+            "farmer_name": data.get("farmer_name", "Market Demand"),
+            "crop_name": data.get("crop_name", "Bulk Crop"),
+            "quantity": data.get("quantity_required", 100),
+            "price_per_kg": 50,
+            "total_price": float(data.get("quantity_required", 100)) * 50,
+            "status": data.get("status", "open"),
+            "order_type": "bulk",
+            "is_bulk": True,
+            "bulk_order_id": data["id"],
+            "region": data.get("region", "Andhra Pradesh"),
+            "created_at": data["created_at"]
+        }
+        if is_mongo_online:
+            try:
+                await db.get_collection("orders").update_one({"id": order_record["id"]}, {"$set": order_record}, upsert=True)
+            except Exception:
+                pass
+        IN_MEMORY_TABLES["orders"].append(order_record)
+        try:
+            await manager.broadcast("orders", "INSERT", order_record)
+        except Exception:
+            pass
 
     try:
         await manager.broadcast(table, "INSERT", record_copy)
@@ -631,16 +702,36 @@ async def update_record(table: str, request: Request):
     data = await request.json()
     
     if query_params:
+        target_id = query_params.get("id")
+
         if is_mongo_online:
             try:
                 collection = db.get_collection(table)
                 await collection.update_many(query_params, {"$set": data})
                 cursor = collection.find(query_params, {"_id": 0})
                 results = await cursor.to_list(length=100)
+                
+                # Cross-table synchronization for status updates on bulk orders
+                if "status" in data:
+                    new_status = data["status"]
+                    if table == "orders":
+                        sync_query = {"$or": [{"id": target_id}, {"order_id": target_id}, {"bulk_order_id": target_id}]} if target_id else query_params
+                        await db.get_collection("bulk_orders").update_many(sync_query, {"$set": {"status": new_status}})
+                        await db.get_collection("bulk_requests").update_many(sync_query, {"$set": {"status": new_status}})
+                    elif table == "bulk_orders":
+                        sync_query = {"$or": [{"id": target_id}, {"order_id": target_id}, {"bulk_order_id": target_id}]} if target_id else query_params
+                        await db.get_collection("orders").update_many(sync_query, {"$set": {"status": new_status}})
+
                 if results:
+                    payload_data = results[0] if len(results) > 0 else data
                     try:
-                        payload_data = results[0] if len(results) > 0 else data
                         await manager.broadcast(table, "UPDATE", payload_data)
+                        if "status" in data and target_id:
+                            if table == "orders":
+                                await manager.broadcast("bulk_orders", "UPDATE", {**payload_data, "id": target_id, "status": data["status"]})
+                                await manager.broadcast("bulk_requests", "UPDATE", {**payload_data, "id": target_id, "status": data["status"]})
+                            elif table == "bulk_orders":
+                                await manager.broadcast("orders", "UPDATE", {**payload_data, "id": target_id, "status": data["status"]})
                     except Exception:
                         pass
                     return results
@@ -649,7 +740,7 @@ async def update_record(table: str, request: Request):
                 print(f"MongoDB update_record fallback for table {table}: {e}")
 
         updated_items = []
-        for r in IN_MEMORY_TABLES[table]:
+        for r in IN_MEMORY_TABLES.get(table, []):
             match = True
             for k, v in query_params.items():
                 if str(r.get(k)) != str(v):
@@ -660,9 +751,30 @@ async def update_record(table: str, request: Request):
                 clean_r = {k: v for k, v in r.items() if k != "_id"}
                 updated_items.append(clean_r)
 
+        # Cross-table in-memory synchronization
+        if "status" in data and target_id:
+            new_status = data["status"]
+            if table == "orders":
+                for r in IN_MEMORY_TABLES.get("bulk_orders", []):
+                    if r.get("id") == target_id or r.get("order_id") == target_id:
+                        r["status"] = new_status
+                for r in IN_MEMORY_TABLES.get("bulk_requests", []):
+                    if r.get("id") == target_id or r.get("order_id") == target_id:
+                        r["status"] = new_status
+            elif table == "bulk_orders":
+                for r in IN_MEMORY_TABLES.get("orders", []):
+                    if r.get("id") == target_id or r.get("bulk_order_id") == target_id:
+                        r["status"] = new_status
+
         try:
             fallback_data = updated_items[0] if len(updated_items) > 0 else data
             await manager.broadcast(table, "UPDATE", fallback_data)
+            if "status" in data and target_id:
+                if table == "orders":
+                    await manager.broadcast("bulk_orders", "UPDATE", {**fallback_data, "id": target_id, "status": data["status"]})
+                    await manager.broadcast("bulk_requests", "UPDATE", {**fallback_data, "id": target_id, "status": data["status"]})
+                elif table == "bulk_orders":
+                    await manager.broadcast("orders", "UPDATE", {**fallback_data, "id": target_id, "status": data["status"]})
         except Exception:
             pass
 
