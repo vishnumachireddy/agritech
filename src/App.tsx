@@ -112,7 +112,7 @@ const App = () => (
                   <Route path="/consumer/orders/:orderId" element={<ConsumerRoute><OrderTracking /></ConsumerRoute>} />
                   <Route path="/consumer/profile" element={<ConsumerRoute><Profile /></ConsumerRoute>} />
                   <Route path="/farmer/profile" element={<FarmerRoute><Profile /></FarmerRoute>} />
-                  <Route path="/profile" element={<RoleGuard allowedRole={undefined as any}><Profile /></RoleGuard>} />
+                  <Route path="/profile" element={<RoleGuard><Profile /></RoleGuard>} />
 
                   <Route path="*" element={<NotFound />} />
                 </Routes>

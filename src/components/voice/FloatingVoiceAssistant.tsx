@@ -27,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 export const FloatingVoiceAssistant: React.FC = () => {
   const {
@@ -436,4 +437,10 @@ export const FloatingVoiceAssistant: React.FC = () => {
   );
 };
 
-export default FloatingVoiceAssistant;
+const SafeFloatingVoiceAssistant: React.FC = () => (
+  <ErrorBoundary fallback={null}>
+    <FloatingVoiceAssistant />
+  </ErrorBoundary>
+);
+
+export default SafeFloatingVoiceAssistant;
