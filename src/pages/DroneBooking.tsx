@@ -124,6 +124,23 @@ const DroneBooking = () => {
   };
 
   useEffect(() => {
+    if (user) {
+      if (user.phone || user.phone_number) {
+        setContactNumber(user.phone || user.phone_number);
+      }
+      if (user.region || user.address) {
+        setFieldLocation(user.region || user.address);
+      }
+      if (user.primary_crop || user.primary_crops) {
+        setCrop(user.primary_crop || user.primary_crops);
+      }
+      if (user.land_area || user.total_land_area) {
+        setFieldArea(String(user.land_area || user.total_land_area));
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
     fetchData();
 
     // Listen to unified realtime DB events
@@ -171,7 +188,7 @@ const DroneBooking = () => {
           additional_notes: additionalNotes,
           provider_id: selectedProviderId,
           farmer_id: user?.id || "farmer-demo-1",
-          farmer_name: user?.user_metadata?.full_name || "Ramesh Kumar"
+          farmer_name: user?.full_name || user?.user_metadata?.full_name || user?.name || "Farmer"
         })
       });
 

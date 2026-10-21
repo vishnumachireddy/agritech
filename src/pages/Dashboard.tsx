@@ -93,7 +93,7 @@ const Dashboard = () => {
         <span className="inline-block px-3 py-1 bg-primary-foreground/20 rounded-full text-xs font-semibold tracking-wider uppercase mb-3">
           Community Intelligence Hub
         </span>
-        <h1 className="text-3xl font-display font-bold mb-2">Welcome to AgriAssist</h1>
+        <h1 className="text-3xl font-display font-bold mb-2">Welcome{user?.full_name ? `, ${user.full_name}` : ""} to AgriAssist</h1>
         <p className="text-primary-foreground/80 max-w-lg">
           Your smart farming companion. Monitor crop health, get AI-powered insights,
           and optimize your farm's productivity.

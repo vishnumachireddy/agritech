@@ -45,35 +45,10 @@ const Login = () => {
     }
   };
 
-  const loginWithDemo = async (demoEmail: string, demoPass: string) => {
+  const fillDemo = (demoEmail: string, demoPass: string, roleLabel: string) => {
     setEmail(demoEmail);
     setPassword(demoPass);
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: demoEmail, password: demoPass })
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.detail || "Invalid credentials");
-      }
-
-      login(data.user, data.token);
-      toast.success(`Welcome back, ${data.user.full_name || 'User'}!`);
-
-      if (data.user?.role === "consumer") {
-        navigate("/consumer/dashboard");
-      } else {
-        navigate("/farmer/dashboard");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Login failed. Please check your credentials.");
-    } finally {
-      setLoading(false);
-    }
+    toast.info(`Filled ${roleLabel} demo credentials. Click "Sign In" to proceed.`);
   };
 
   return (
@@ -84,7 +59,7 @@ const Login = () => {
             <span className="text-lg font-bold text-primary-foreground">A</span>
           </div>
           <CardTitle className="font-display text-2xl">Welcome to AgriAssist</CardTitle>
-          <CardDescription>Sign in to your account</CardDescription>
+          <CardDescription>Sign in with your email & password. Your account role is loaded automatically.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -101,32 +76,35 @@ const Login = () => {
             </Button>
           </form>
 
-          {/* 1-Click Demo Login Shortcuts */}
+          {/* Demo Account Fill Shortcuts */}
           <div className="mt-6 pt-5 border-t border-border space-y-3">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">
-              Quick 1-Click Demo Access
+            <div className="text-center">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Testing Demo Accounts (Auto-fill)
+              </span>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Clicking fills demo credentials into the form above so you can click Sign In.
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="w-full text-xs font-medium border-primary/40 hover:bg-primary/10 hover:text-primary flex flex-col h-auto py-2"
-                onClick={() => loginWithDemo("farmer@agri.com", "farmer123")}
-                disabled={loading}
+                className="w-full text-xs font-medium border-primary/30 hover:bg-primary/10 hover:text-primary flex flex-col h-auto py-2"
+                onClick={() => fillDemo("farmer@agri.com", "farmer123", "Farmer")}
               >
-                <span className="font-bold text-foreground">🚜 Farmer (Producer)</span>
+                <span className="font-bold text-foreground">🚜 Auto-fill Farmer Demo</span>
                 <span className="text-[10px] text-muted-foreground">farmer@agri.com</span>
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="w-full text-xs font-medium border-foreground/30 hover:bg-muted hover:text-foreground flex flex-col h-auto py-2"
-                onClick={() => loginWithDemo("consumer@agri.com", "consumer123")}
-                disabled={loading}
+                className="w-full text-xs font-medium border-foreground/20 hover:bg-muted hover:text-foreground flex flex-col h-auto py-2"
+                onClick={() => fillDemo("consumer@agri.com", "consumer123", "Consumer")}
               >
-                <span className="font-bold text-foreground">🛒 Consumer</span>
+                <span className="font-bold text-foreground">🛒 Auto-fill Consumer Demo</span>
                 <span className="text-[10px] text-muted-foreground">consumer@agri.com</span>
               </Button>
             </div>

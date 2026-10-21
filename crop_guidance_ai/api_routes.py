@@ -372,16 +372,34 @@ class LoginRequest(BaseModel):
 class ProfileUpdateRequest(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
+    phone_number: Optional[str] = None
     region: Optional[str] = None
+    state: Optional[str] = None
+    district: Optional[str] = None
+    address: Optional[str] = None
     primary_crop: Optional[str] = None
+    primary_crops: Optional[str] = None
     secondary_crop: Optional[str] = None
     land_area: Optional[float] = None
+    total_land_area: Optional[float] = None
     total_yield: Optional[float] = None
     monthly_production: Optional[float] = None
     expected_price: Optional[float] = None
     water_availability: Optional[str] = None
     farming_type: Optional[str] = None
     harvest_cycle: Optional[str] = None
+    avatar_url: Optional[str] = None
+    farm_name: Optional[str] = None
+    irrigation_type: Optional[str] = None
+    soil_type: Optional[str] = None
+    years_of_experience: Optional[float] = None
+    business_name: Optional[str] = None
+    business_type: Optional[str] = None
+    preferred_crops: Optional[str] = None
+    purchase_volume_capacity: Optional[float] = None
+
+    class Config:
+        extra = "allow"
 
 @router.post("/api/auth/register")
 async def register(req: RegisterRequest):

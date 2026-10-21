@@ -89,7 +89,7 @@ const Marketplace = () => {
           }
           return {
             farmer_id: c.farmer_id || "farmer-demo-1",
-            farmer_name: c.farmer_name || farmer?.full_name || "Ramesh Kumar",
+            farmer_name: c.farmer_name || farmer?.full_name || "Organic Producer",
             region: c.location || farmer?.region || "Andhra Pradesh",
             crop_name: c.name || c.crop_type || "Organic Crop",
             total_yield: c.quantity || 1000,
@@ -131,7 +131,7 @@ const Marketplace = () => {
         merged = [
           {
             farmer_id: "farmer-demo-1",
-            farmer_name: "Ramesh Kumar",
+            farmer_name: "Kurnool Organic Collective",
             region: "Andhra Pradesh",
             crop_name: "Organic Sona Masoori Rice",
             total_yield: 1200,
@@ -144,7 +144,7 @@ const Marketplace = () => {
           },
           {
             farmer_id: "farmer-demo-1",
-            farmer_name: "Ramesh Kumar",
+            farmer_name: "Rayalaseema Cotton Farmers",
             region: "Andhra Pradesh",
             crop_name: "Raw Organic Cotton Bales",
             total_yield: 800,

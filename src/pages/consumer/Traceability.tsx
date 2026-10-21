@@ -70,7 +70,7 @@ const Traceability = () => {
 
         const formatted = fetchedOrders.map((o) => ({
           ...o,
-          farmer_name: nameMap.get(o.farmer_id) || "Ramesh Kumar (AP Farms)"
+          farmer_name: nameMap.get(o.farmer_id) || o.farmer_name || "Verified Local Producer"
         }));
 
         setOrders(formatted);

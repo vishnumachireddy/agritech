@@ -22,7 +22,7 @@ class CreateBookingRequest(BaseModel):
     additional_notes: Optional[str] = ""
     provider_id: str
     farmer_id: Optional[str] = "farmer-demo-1"
-    farmer_name: Optional[str] = "Ramesh Kumar"
+    farmer_name: Optional[str] = "Farmer"
 
 class UpdateStatusRequest(BaseModel):
     status: str  # ACCEPTED | REJECTED | SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED
@@ -138,7 +138,7 @@ async def create_spray_booking(req: CreateBookingRequest):
         "id": booking_id,
         "booking_id": booking_id,
         "farmer_id": req.farmer_id or "farmer-demo-1",
-        "farmer_name": req.farmer_name or "Ramesh Kumar",
+        "farmer_name": req.farmer_name or "Farmer",
         "farmer_phone": req.farmer_contact,
         "spray_type": req.spray_type,
         "crop": req.crop,

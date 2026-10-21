@@ -87,11 +87,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err: any) {
       clearTimeout(timeoutId);
-      // Server asleep or network slow: retain cached user session safely
-      console.warn(
-        "Background profile check timed out or offline:",
-        err.name || err.message
-      );
+      // Intentional timeout cancellation if Render cold boot takes >6s: safely retain local user session
+      if (err.name !== "AbortError" && import.meta.env.DEV) {
+        console.warn(
+          "Background profile check:",
+          err.name || err.message
+        );
+      }
     }
   };
 

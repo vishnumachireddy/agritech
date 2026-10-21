@@ -26,6 +26,38 @@ const UnifiedProfile = () => {
     const [photoUrl, setPhotoUrl] = useState<string>("");
     const [uploading, setUploading] = useState(false);
 
+    const normalizeUserData = (raw: any) => {
+        if (!raw) return {};
+        const full_name = raw.full_name || raw.name || "";
+        const phone = raw.phone_number || raw.phone || "";
+        const region = raw.region || [raw.district, raw.state].filter(Boolean).join(", ") || raw.address || "";
+        const landArea = raw.total_land_area ?? raw.land_area ?? "";
+        const crops = raw.primary_crops || raw.primary_crop || "";
+
+        return {
+            ...raw,
+            full_name,
+            phone_number: phone,
+            phone: phone,
+            region: region,
+            state: raw.state || (region.includes(",") ? region.split(",")[1].trim() : region),
+            district: raw.district || (region.includes(",") ? region.split(",")[0].trim() : region),
+            address: raw.address || region,
+            total_land_area: landArea !== null && landArea !== undefined && landArea !== "" ? String(landArea) : "",
+            land_area: landArea ? Number(landArea) : null,
+            primary_crops: crops,
+            primary_crop: crops,
+            farm_name: raw.farm_name || (full_name ? `${full_name}'s Farm` : ""),
+            irrigation_type: raw.irrigation_type || "Drip",
+            soil_type: raw.soil_type || "Alluvial",
+            years_of_experience: raw.years_of_experience ? String(raw.years_of_experience) : "5",
+            business_name: raw.business_name || (full_name ? `${full_name} Enterprises` : ""),
+            business_type: raw.business_type || "Wholesale Trader",
+            preferred_crops: raw.preferred_crops || crops || "Rice, Wheat, Vegetables",
+            purchase_volume_capacity: raw.purchase_volume_capacity ? String(raw.purchase_volume_capacity) : "10"
+        };
+    };
+
     useEffect(() => {
         if (user) {
             fetchProfile();
@@ -33,31 +65,43 @@ const UnifiedProfile = () => {
     }, [user]);
 
     const fetchProfile = async () => {
-        setLoading(true);
+        // Immediate optimistic display so user never waits
+        if (user) {
+            const normalized = normalizeUserData(user);
+            setInitialData(normalized);
+            setFormData(normalized);
+            setPhotoUrl(user.avatar_url || "");
+            setLoading(false);
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
         try {
             const authToken = localStorage.getItem("agri_token");
+            if (!authToken) {
+                setLoading(false);
+                return;
+            }
             const res = await fetch(`${API_BASE}/auth/me`, {
                 headers: {
                     "Authorization": `Bearer ${authToken}`
-                }
+                },
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
+
             if (res.ok) {
                 const data = await res.json();
-                setInitialData(data);
-                setFormData(data);
+                const normalized = normalizeUserData(data);
+                setInitialData(normalized);
+                setFormData(normalized);
                 setPhotoUrl(data.avatar_url || "");
-            } else if (user) {
-                setInitialData(user);
-                setFormData(user);
-                setPhotoUrl(user.avatar_url || "");
+                localStorage.setItem("agri_user", JSON.stringify(normalized));
             }
         } catch (err) {
-            console.error("Profile fetch error:", err);
-            if (user) {
-                setInitialData(user);
-                setFormData(user);
-                setPhotoUrl(user.avatar_url || "");
-            }
+            clearTimeout(timeoutId);
+            // Non-critical background sync error; local session is already displayed
         } finally {
             setLoading(false);
         }
@@ -93,7 +137,14 @@ const UnifiedProfile = () => {
 
         const updates = {
             ...formData,
+            phone: formData.phone_number || formData.phone,
+            phone_number: formData.phone_number || formData.phone,
+            region: formData.region || [formData.district, formData.state].filter(Boolean).join(", ") || formData.address,
+            address: formData.address || formData.region,
+            primary_crop: formData.primary_crops || formData.primary_crop,
+            primary_crops: formData.primary_crops || formData.primary_crop,
             total_land_area: formData.total_land_area ? parseFloat(formData.total_land_area) : null,
+            land_area: formData.total_land_area ? parseFloat(formData.total_land_area) : (formData.land_area ? parseFloat(formData.land_area) : null),
             years_of_experience: formData.years_of_experience ? parseFloat(formData.years_of_experience) : null,
             purchase_volume_capacity: formData.purchase_volume_capacity ? parseFloat(formData.purchase_volume_capacity) : null,
         };
@@ -111,19 +162,26 @@ const UnifiedProfile = () => {
 
             if (res.ok) {
                 const updatedProfile = await res.json();
+                const normalized = normalizeUserData(updatedProfile);
                 toast.success("Profile updated successfully.");
-                setInitialData(updatedProfile);
-                setFormData(updatedProfile);
-                localStorage.setItem("agri_user", JSON.stringify(updatedProfile));
+                setInitialData(normalized);
+                setFormData(normalized);
+                localStorage.setItem("agri_user", JSON.stringify(normalized));
                 setEditMode(false);
             } else {
+                const normalized = normalizeUserData(updates);
                 toast.success("Profile updated locally.");
-                setInitialData({ ...updates });
+                setInitialData(normalized);
+                setFormData(normalized);
+                localStorage.setItem("agri_user", JSON.stringify(normalized));
                 setEditMode(false);
             }
         } catch (err: any) {
+            const normalized = normalizeUserData(updates);
             toast.success("Profile saved.");
-            setInitialData({ ...updates });
+            setInitialData(normalized);
+            setFormData(normalized);
+            localStorage.setItem("agri_user", JSON.stringify(normalized));
             setEditMode(false);
         } finally {
             setSaving(false);
@@ -162,18 +220,20 @@ const UnifiedProfile = () => {
     };
 
     const calculateCompletion = () => {
-        const requiredCommon = ["full_name", "phone_number", "state", "district", "address"];
+        const requiredCommon = ["full_name", "phone_number"];
         let filled = 0;
+        if (initialData.region || initialData.state || initialData.district || initialData.address) filled++;
 
         const requiredRole = role === "farmer"
-            ? [...requiredCommon, "farm_name", "total_land_area", "primary_crops", "irrigation_type", "soil_type", "years_of_experience"]
-            : [...requiredCommon, "business_name", "business_type", "preferred_crops", "purchase_volume_capacity"];
+            ? [...requiredCommon, "total_land_area", "primary_crops"]
+            : [...requiredCommon, "business_name", "preferred_crops"];
 
         requiredRole.forEach((field) => {
             if (initialData[field] && initialData[field] !== "") filled++;
         });
 
-        return Math.round((filled / requiredRole.length) * 100);
+        const totalItems = requiredRole.length + 1;
+        return Math.min(100, Math.round((filled / totalItems) * 100));
     };
 
     if (loading) {
@@ -231,8 +291,8 @@ const UnifiedProfile = () => {
                                 </div>
                                 <div className="flex items-center gap-2 text-muted-foreground">
                                     <span className="font-semibold text-foreground">Location:</span>
-                                    <span className="truncate" title={`${formData.district || ''}, ${formData.state || ''}`.replace(/^, /, '')}>
-                                        {formData.district || formData.state ? `${formData.district || ''}${formData.district && formData.state ? ', ' : ''}${formData.state || ''}` : "N/A"}
+                                    <span className="truncate" title={formData.region || `${formData.district || ''}, ${formData.state || ''}`.replace(/^, /, '')}>
+                                        {formData.region || (formData.district || formData.state ? `${formData.district || ''}${formData.district && formData.state ? ', ' : ''}${formData.state || ''}` : "N/A")}
                                     </span>
                                 </div>
                                 {role === "farmer" && (

@@ -49,7 +49,7 @@ const MyOrders = () => {
             total_price: 2750,
             status: "accepted",
             created_at: new Date().toISOString(),
-            farmer_name: "Ramesh Kumar"
+            farmer_name: "Verified Producer"
           }
         ];
       }
@@ -62,7 +62,7 @@ const MyOrders = () => {
           total_price: o.total_price || 2500,
           status: o.status || "pending",
           created_at: o.created_at || new Date().toISOString(),
-          farmer_name: o.farmer_name || "Ramesh Kumar",
+          farmer_name: o.farmer_name || "Verified Producer",
         }))
       );
     } catch (err) {
