@@ -300,12 +300,17 @@ export class IntentResolver {
         ? `${question} (దయచేసి రైతులకు సులభంగా అర్థమయ్యే విధంగా సరళమైన తెలుగులో 2-3 వాక్యాలలో సమాధానం ఇవ్వండి)`
         : `${question} (Please provide a concise, practical farming response under 40 words for voice reading)`;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4500); // 4.5s max timeout to prevent speech lag
+
     try {
       const res = await fetch(`${API_BASE}/fertilizer-chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: formattedPrompt }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (res.ok) {
         const data = await res.json();
@@ -319,7 +324,8 @@ export class IntentResolver {
         }
       }
     } catch (e) {
-      console.warn("Groq agricultural query fallback failed:", e);
+      clearTimeout(timeoutId);
+      console.warn("Groq agricultural query fallback failed or timed out:", e);
     }
 
     // Grounded safe fallback

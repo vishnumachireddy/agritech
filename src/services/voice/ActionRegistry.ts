@@ -39,12 +39,17 @@ export class ActionRegistry {
    * Read-only tool: Fetch current weather for the user's region
    */
   public async fetchWeather(region: string = "Andhra Pradesh"): Promise<ActionResult> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
     try {
       const res = await fetch(`${API_BASE}/weather`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ region }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (res.ok) {
         const data = await res.json();
@@ -60,7 +65,8 @@ export class ActionRegistry {
         };
       }
     } catch (e) {
-      console.warn("FastAPI weather failed, using fallback:", e);
+      clearTimeout(timeoutId);
+      console.warn("FastAPI weather failed or timed out, using fallback:", e);
     }
 
     // Direct fallback
@@ -75,8 +81,14 @@ export class ActionRegistry {
    * Read-only tool: Fetch live crop prices from Market Engine
    */
   public async fetchCropPrice(cropName?: string): Promise<ActionResult> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
     try {
-      const res = await fetch(`${BACKEND_URL}/api/market/live-prices`);
+      const res = await fetch(`${BACKEND_URL}/api/market/live-prices`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
       if (res.ok) {
         const items = await res.json();
         if (Array.isArray(items) && items.length > 0) {
@@ -116,7 +128,8 @@ export class ActionRegistry {
         }
       }
     } catch (e) {
-      console.warn("Market live prices fetch failed:", e);
+      clearTimeout(timeoutId);
+      console.warn("Market live prices fetch failed or timed out:", e);
     }
 
     return {
@@ -138,8 +151,14 @@ export class ActionRegistry {
       };
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
     try {
-      const res = await fetch(`${API_BASE}/orders?farmer_id=${userId}`);
+      const res = await fetch(`${API_BASE}/orders?farmer_id=${userId}`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
       if (res.ok) {
         const orders = await res.json();
         if (Array.isArray(orders)) {

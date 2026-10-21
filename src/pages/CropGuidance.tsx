@@ -12,6 +12,19 @@ import { useLanguage } from "@/hooks/useLanguage";
 
 const API_BASE = `${GLOBAL_API_BASE}/crop-guidance`;
 
+const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 5000) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    return res;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+};
+
 const soilOptions = [
   { label: "Loamy", value: "Loamy" }, { label: "Clay", value: "Clay" }, { label: "Sandy", value: "Sandy" },
   { label: "Alluvial", value: "Alluvial" }, { label: "Black Soil", value: "Black" }, { label: "Red Soil", value: "Red" }, { label: "Laterite", value: "Laterite" }
@@ -188,7 +201,7 @@ const TabRecommendation = () => {
         rainfall: Number(form.rainfall)
       };
 
-      const res = await fetch(`${API_BASE}/recommend`, {
+      const res = await fetchWithTimeout(`${API_BASE}/recommend`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
@@ -297,7 +310,7 @@ const TabSoilAnalysis = () => {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/soil-analysis`, {
+      const res = await fetchWithTimeout(`${API_BASE}/soil-analysis`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, region: `${form.district}, ${form.state}`, rainfall: Number(form.rainfall) })
       });
@@ -356,7 +369,7 @@ const TabProfitEstimation = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/profit-estimation`, {
+      const res = await fetchWithTimeout(`${API_BASE}/profit-estimation`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)
       });
@@ -406,7 +419,7 @@ const TabMarketStrategy = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/market-strategy`, {
+      const res = await fetchWithTimeout(`${API_BASE}/market-strategy`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)
       });
@@ -481,7 +494,7 @@ const TabChat = () => {
       : userMsg;
 
     try {
-      const res = await fetch(`${API_BASE}/chat`, {
+      const res = await fetchWithTimeout(`${API_BASE}/chat`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: outgoingMsg })
       });

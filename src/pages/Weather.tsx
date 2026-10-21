@@ -135,13 +135,17 @@ const Weather = () => {
     setLoading(true);
     setError(null);
 
-    // 1. Try FastAPI backend route first
+    // 1. Try FastAPI backend route first with 3s timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
     try {
       const res = await fetch(`${API_BASE}/weather`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ region: targetRegion })
+        body: JSON.stringify({ region: targetRegion }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
         setWeather(data);
@@ -149,6 +153,7 @@ const Weather = () => {
         return;
       }
     } catch (backendErr) {
+      clearTimeout(timeoutId);
       console.warn("Backend weather endpoint unavailable, trying direct API:", backendErr);
     }
 

@@ -41,12 +41,17 @@ const Fertilizer = () => {
       ? `${userMsg} (దయచేసి రైతులకు సులభంగా అర్థమయ్యే విధంగా సరళమైన తెలుగులో సమాధానం ఇవ్వండి)`
       : userMsg;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5500);
+
     try {
       const res = await fetch(`${API_BASE}/fertilizer-chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: outgoingMsg })
+        body: JSON.stringify({ message: outgoingMsg }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (!res.ok) throw new Error("Backend chat service unreachable");
       const data = await res.json();
@@ -54,8 +59,9 @@ const Fertilizer = () => {
       const botTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       setMessages((prev) => [...prev, { role: "bot", text: data.reply || "I couldn't process that. Please try again.", time: botTime }]);
     } catch (err: unknown) {
+      clearTimeout(timeoutId);
       const msg = err instanceof Error ? err.message : "Failed to get response";
-      toast.error(msg);
+      console.warn("Fertilizer chat network error or timeout:", msg);
       const botTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       setMessages((prev) => [
         ...prev, 

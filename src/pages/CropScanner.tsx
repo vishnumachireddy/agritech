@@ -385,7 +385,8 @@ const CropScanner = () => {
                   <ScanLine className="w-6 h-6 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
                 </div>
                 <p className="font-bold text-lg text-foreground">Analyzing Image...</p>
-                <p className="text-sm text-muted-foreground animate-pulse">Running AI Pathology Diagnostic</p>
+                <p className="text-sm font-medium text-primary mt-1 animate-pulse">{scanStage || "Running AI Pathology Diagnostic"}</p>
+                <p className="text-xs text-muted-foreground mt-2">High-speed Vision Inference • Dual-Channel Pipeline</p>
               </div>
             )}
 

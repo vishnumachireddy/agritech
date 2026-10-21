@@ -105,8 +105,14 @@ const MarketInsights = () => {
   }, []);
 
   const fetchLivePrices = async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3200);
+
     try {
-      const res = await fetch(`${AI_ENGINE_URL}/api/market/live-prices`);
+      const res = await fetch(`${AI_ENGINE_URL}/api/market/live-prices`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
         setMarketData(data);
@@ -115,6 +121,7 @@ const MarketInsights = () => {
         throw new Error("HTTP error " + res.status);
       }
     } catch (e) {
+      clearTimeout(timeoutId);
       console.warn("Market live price fallback activated:", e);
       // Graceful agricultural fallback data
       const fallbackPrices: MarketData[] = [
@@ -131,29 +138,37 @@ const MarketInsights = () => {
 
   const getAIIntelligence = async (cropName: string) => {
     setLoadingAI(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4500);
+
     try {
       const p1 = fetch(`${AI_ENGINE_URL}/api/market/predict-price`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ crop_name: cropName })
-      }).then(res => res.json());
+        body: JSON.stringify({ crop_name: cropName }),
+        signal: controller.signal,
+      }).then(res => res.json()).catch(() => null);
 
       const p2 = fetch(`${AI_ENGINE_URL}/api/market/strategy`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ crop_name: cropName })
-      }).then(res => res.json());
+        body: JSON.stringify({ crop_name: cropName }),
+        signal: controller.signal,
+      }).then(res => res.json()).catch(() => null);
 
       const p3 = fetch(`${AI_ENGINE_URL}/api/market/peak-time`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ crop_name: cropName })
-      }).then(res => res.json());
+        body: JSON.stringify({ crop_name: cropName }),
+        signal: controller.signal,
+      }).then(res => res.json()).catch(() => null);
 
       const [predData, strategyData, peakData] = await Promise.all([p1, p2, p3]);
+      clearTimeout(timeoutId);
 
-      setPredictions(predData);
-      setStrategy(strategyData);
-      setPeak(peakData);
+      if (predData) setPredictions(predData);
+      if (strategyData) setStrategy(strategyData);
+      if (peakData) setPeak(peakData);
     } catch (e) {
-      toast.error("Failed to fetch AI insights");
+      clearTimeout(timeoutId);
+      console.warn("AI insights fetch timed out or offline:", e);
     } finally {
       setLoadingAI(false);
     }
