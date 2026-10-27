@@ -1,5 +1,5 @@
 // Action Registry for AgroSmart AI Voice Assistant
-// Classifies actions into: Safe (Immediate), Read-Only (Grounded APIs), and Consequential (Two-Stage Confirmation)
+// Classifies actions into: Safe (Immediate), Read-Only (Live Database Queries), and Consequential (Two-Stage Confirmation)
 
 import { API_BASE, BACKEND_URL } from "@/config";
 
@@ -7,7 +7,7 @@ export type ActionCategory = "safe" | "read_only" | "consequential";
 
 export interface PendingAction {
   id: string;
-  actionType: "book_spray" | "cancel_booking";
+  actionType: "book_spray" | "cancel_booking" | "update_order_status";
   category: "consequential";
   payload: any;
   summaryEn: string;
@@ -21,9 +21,19 @@ export interface ActionResult {
   messageEn: string;
   messageTe: string;
   data?: any;
+  cardType?: "orders_list" | "order_summary" | "bulk_progress" | "weather" | "price_list" | "schemes";
+  cardData?: any;
 }
 
 export class ActionRegistry {
+  private getAuthHeaders(): Record<string, string> {
+    const token = localStorage.getItem("agri_token") || localStorage.getItem("access_token");
+    return {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    };
+  }
+
   /**
    * Safe action: Stop assistant speech
    */
@@ -36,169 +46,335 @@ export class ActionRegistry {
   }
 
   /**
-   * Read-only tool: Fetch current weather for the user's region
+   * Read-only tool: Fetch current weather for the user's location
    */
-  public async fetchWeather(region: string = "Andhra Pradesh"): Promise<ActionResult> {
+  public async fetchWeather(params?: { lat?: number; lon?: number; region?: string }): Promise<ActionResult> {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 4500);
+
+    const bodyPayload = params?.lat && params?.lon
+      ? { lat: params.lat, lon: params.lon }
+      : { region: params?.region || "Andhra Pradesh" };
 
     try {
       const res = await fetch(`${API_BASE}/weather`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ region }),
+        body: JSON.stringify(bodyPayload),
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
 
       if (res.ok) {
         const data = await res.json();
-        const temp = data?.current?.temperature ?? 31;
-        const cond = data?.current?.condition ?? "Sunny / Clear";
-        const humidity = data?.current?.humidity ?? 50;
+        const temp = data?.current?.temperature ?? 30;
+        const cond = data?.current?.condition ?? "Clear";
+        const humidity = data?.current?.humidity ?? 55;
+        const locName = data?.location?.formatted_location || data?.location?.name || params?.region || "your area";
 
         return {
           success: true,
-          messageEn: `The current weather in ${region} is ${temp}°C, condition is ${cond}, with ${humidity}% humidity. Good conditions for farming operations.`,
-          messageTe: `${region} లో ప్రస్తుత వాతావరణం: ${temp}°C, ${cond}, తేమ శాతం ${humidity}%. వ్యవసాయ పనులకు అనుకూలంగా ఉంది.`,
+          messageEn: `The live weather in ${locName} is ${temp}°C, condition is ${cond}, with ${humidity}% humidity.`,
+          messageTe: `${locName} లో ప్రస్తుత వాతావరణం: ${temp}°C, ${cond}, తేమ శాతం ${humidity}%.`,
           data,
+          cardType: "weather",
+          cardData: data,
         };
       }
     } catch (e) {
       clearTimeout(timeoutId);
-      console.warn("FastAPI weather failed or timed out, using fallback:", e);
+      console.warn("Weather API fetch failed:", e);
     }
 
-    // Direct fallback
     return {
       success: true,
-      messageEn: `Current weather in ${region} is approximately 31°C, Clear skies with moderate humidity.`,
-      messageTe: `${region} లో ప్రస్తుత వాతావరణం దాదాపు 31°C, తేమ అనుకూలంగా ఉంది, ఆకాశం నిర్మలంగా ఉంది.`,
+      messageEn: `Current weather in your region is approximately 30°C with clear skies and favorable farming conditions.`,
+      messageTe: `మీ ప్రాంతంలో ప్రస్తుత వాతావరణం దాదాపు 30°C, వ్యవసాయ పనులకు అనుకూలంగా ఉంది.`,
     };
   }
 
   /**
-   * Read-only tool: Fetch live crop prices from Market Engine
+   * Read-only tool: Fetch live crop prices from Marketplace crops data
    */
   public async fetchCropPrice(cropName?: string): Promise<ActionResult> {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
     try {
-      const res = await fetch(`${BACKEND_URL}/api/market/live-prices`, {
+      const res = await fetch(`${API_BASE}/crops`, {
+        headers: this.getAuthHeaders(),
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
+
       if (res.ok) {
-        const items = await res.json();
-        if (Array.isArray(items) && items.length > 0) {
+        const crops = await res.json();
+        if (Array.isArray(crops) && crops.length > 0) {
           if (cropName) {
-            const match = items.find(
-              (i: any) =>
-                i.crop_name?.toLowerCase().includes(cropName.toLowerCase()) ||
-                cropName.toLowerCase().includes(i.crop_name?.toLowerCase())
+            const match = crops.find(
+              (c: any) =>
+                c.name?.toLowerCase().includes(cropName.toLowerCase()) ||
+                c.crop_type?.toLowerCase().includes(cropName.toLowerCase()) ||
+                cropName.toLowerCase().includes((c.crop_type || "").toLowerCase())
             );
             if (match) {
-              const trendText =
-                match.trend_direction === "up" ? "rising" : "stable";
               return {
                 success: true,
-                messageEn: `The current market price for ${match.crop_name} is ₹${match.current_price || match.modal_price} per kg, and the trend is currently ${trendText}.`,
-                messageTe: `${match.crop_name} ప్రస్తుత మార్కెట్ ధర కిలోకు ₹${match.current_price || match.modal_price}. ధరల సరళి అనుకూలంగా ఉంది.`,
+                messageEn: `The marketplace price for ${match.name} is ₹${match.price} per ${match.unit || "kg"}.`,
+                messageTe: `${match.name} మార్కెట్ ధర కిలోకు ₹${match.price}.`,
                 data: match,
+                cardType: "price_list",
+                cardData: [match],
               };
             }
           }
 
-          // Return top 2 crops summary
-          const top2 = items.slice(0, 2);
-          const enSummary = top2
-            .map((c: any) => `${c.crop_name}: ₹${c.current_price || c.modal_price}/kg`)
-            .join(", ");
-          const teSummary = top2
-            .map((c: any) => `${c.crop_name}: కిలోకు ₹${c.current_price || c.modal_price}`)
-            .join(", ");
+          // Return top 3 crops summary
+          const top3 = crops.slice(0, 3);
+          const enSummary = top3.map((c: any) => `${c.name}: ₹${c.price}/${c.unit || "kg"}`).join(", ");
+          const teSummary = top3.map((c: any) => `${c.name}: కిలోకు ₹${c.price}`).join(", ");
 
           return {
             success: true,
-            messageEn: `Today's live market prices: ${enSummary}.`,
-            messageTe: `నేటి లైవ్ మార్కెట్ ధరలు: ${teSummary}.`,
-            data: items,
+            messageEn: `Active crop marketplace rates: ${enSummary}.`,
+            messageTe: `ప్రస్తుత పంట ధరలు: ${teSummary}.`,
+            data: crops,
+            cardType: "price_list",
+            cardData: top3,
           };
         }
       }
     } catch (e) {
       clearTimeout(timeoutId);
-      console.warn("Market live prices fetch failed or timed out:", e);
+      console.warn("Crops price fetch failed:", e);
     }
 
     return {
       success: true,
-      messageEn: `Market prices: Organic Rice is ₹55 per kg, Wheat is ₹42 per kg, and Cotton is ₹75 per kg.`,
-      messageTe: `మార్కెట్ ధరలు: వరి కిలోకు ₹55, గోధుమ ₹42, పత్తి కిలోకు ₹75 గా ఉన్నాయి.`,
+      messageEn: "Marketplace rates: Organic Sona Masoori Rice is ₹55/kg, Raw Cotton is ₹120/kg, and Sharbati Wheat is ₹42/kg.",
+      messageTe: "మార్కెట్ ధరలు: సేంద్రీయ సోనా మసూరి బియ్యం కిలోకు ₹55, పత్తి ₹120, మరియు గోధుమ కిలోకు ₹42.",
     };
   }
 
   /**
-   * Read-only tool: Fetch user orders count and status
+   * Read-only tool: Fetch authenticated user's real orders with comprehensive status breakdown
    */
-  public async fetchOrdersStatus(userId: string): Promise<ActionResult> {
-    if (!userId) {
-      return {
-        success: false,
-        messageEn: "Please login to view your orders.",
-        messageTe: "మీ ఆర్డర్లను వీక్షించడానికి దయచేసి లాగిన్ అవ్వండి.",
-      };
-    }
-
+  public async fetchOrdersData(userId?: string, role?: string): Promise<{
+    orders: any[];
+    total: number;
+    active: number;
+    pending: number;
+    accepted: number;
+    packed: number;
+    outForDelivery: number;
+    delivered: number;
+    rejected: number;
+    cancelled: number;
+    latest: any | null;
+  }> {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 4500);
 
+    let allOrders: any[] = [];
     try {
-      const res = await fetch(`${API_BASE}/orders?farmer_id=${userId}`, {
-        signal: controller.signal,
-      });
+      const headers = this.getAuthHeaders();
+      const res = await fetch(`${API_BASE}/orders`, { headers, signal: controller.signal });
       clearTimeout(timeoutId);
-      if (res.ok) {
-        const orders = await res.json();
-        if (Array.isArray(orders)) {
-          const pending = orders.filter((o: any) => o.status === "pending").length;
-          const active = orders.filter(
-            (o: any) => o.status !== "delivered" && o.status !== "cancelled"
-          ).length;
 
-          return {
-            success: true,
-            messageEn: `You have ${active} active orders in total, with ${pending} orders pending your acceptance.`,
-            messageTe: `మీకు మొత్తం ${active} క్రియాశీల ఆర్డర్లు ఉన్నాయి, అందులో ${pending} పెండింగ్ స్థితిలో ఉన్నాయి.`,
-            data: { total: orders.length, active, pending },
-          };
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          allOrders = data;
         }
       }
     } catch (e) {
+      clearTimeout(timeoutId);
       console.warn("Orders fetch failed:", e);
     }
 
+    // Filter by user if authorized
+    let userOrders = allOrders;
+    if (userId) {
+      const filtered = allOrders.filter(
+        (o) =>
+          o.farmer_id === userId ||
+          o.consumer_id === userId ||
+          o.customer_id === userId
+      );
+      if (filtered.length > 0) {
+        userOrders = filtered;
+      }
+    }
+
+    // Categorize
+    const pendingList = userOrders.filter((o) => o.status === "pending");
+    const acceptedList = userOrders.filter((o) => o.status === "accepted");
+    const packedList = userOrders.filter((o) => o.status === "packed");
+    const outForDeliveryList = userOrders.filter((o) => o.status === "out_for_delivery");
+    const deliveredList = userOrders.filter((o) => o.status === "delivered");
+    const rejectedList = userOrders.filter((o) => o.status === "rejected");
+    const cancelledList = userOrders.filter((o) => o.status === "cancelled");
+
+    // Active orders are orders in progress
+    const activeList = userOrders.filter((o) =>
+      ["pending", "accepted", "packed", "out_for_delivery"].includes(o.status)
+    );
+
+    // Latest order sorted by created_at descending
+    const sorted = [...userOrders].sort(
+      (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    );
+    const latest = sorted.length > 0 ? sorted[0] : null;
+
     return {
-      success: true,
-      messageEn: "You currently have 2 active crop orders pending dispatch.",
-      messageTe: "మీకు ప్రస్తుతం డెలివరీ చేయాల్సిన 2 యాక్టివ్ ఆర్డర్లు ఉన్నాయి.",
+      orders: userOrders,
+      total: userOrders.length,
+      active: activeList.length,
+      pending: pendingList.length,
+      accepted: acceptedList.length,
+      packed: packedList.length,
+      outForDelivery: outForDeliveryList.length,
+      delivered: deliveredList.length,
+      rejected: rejectedList.length,
+      cancelled: cancelledList.length,
+      latest,
     };
   }
 
   /**
-   * Read-only tool: Fetch government schemes summary
+   * Read-only tool: Fetch bulk contract orders with exact progress
    */
-  public fetchGovtSchemes(): ActionResult {
+  public async fetchBulkOrdersData(cropHint?: string): Promise<{
+    orders: any[];
+    targetOrder: any | null;
+  }> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    let bulkList: any[] = [];
+    try {
+      const res = await fetch(`${API_BASE}/bulk_orders`, {
+        headers: this.getAuthHeaders(),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          bulkList = data;
+        }
+      }
+    } catch (e) {
+      clearTimeout(timeoutId);
+      console.warn("Bulk orders fetch failed:", e);
+    }
+
+    // Process progress metrics: Progress (%) = (Fulfilled / Total) * 100
+    const processed = bulkList.map((b: any) => {
+      const total = Number(b.quantity_required ?? b.quantity ?? 100);
+      const fulfilled = Math.max(0, Math.min(total, Number(b.fulfilled_quantity ?? b.total_committed ?? 0)));
+      const remaining = Math.max(0, total - fulfilled);
+      const progress = total > 0 ? Math.min(100, Math.max(0, Math.round((fulfilled / total) * 100))) : 0;
+      return {
+        ...b,
+        quantity_required: total,
+        fulfilled_quantity: fulfilled,
+        remaining_quantity: remaining,
+        progress_percentage: progress,
+      };
+    });
+
+    let targetOrder: any | null = null;
+    if (cropHint && processed.length > 0) {
+      targetOrder = processed.find(
+        (b) =>
+          b.crop_name?.toLowerCase().includes(cropHint.toLowerCase()) ||
+          cropHint.toLowerCase().includes(b.crop_name?.toLowerCase())
+      ) || null;
+    }
+    if (!targetOrder && processed.length > 0) {
+      targetOrder = processed[0];
+    }
+
     return {
-      success: true,
-      messageEn: "Available agricultural schemes include: PM-KISAN offering ₹6,000 yearly income support, PM Fasal Bima Yojana for crop loss protection, and Soil Health Card for testing.",
-      messageTe: "ప్రధాన ప్రభుత్వ పథకాలు: పీఎం కిసాన్ ద్వారా సంవత్సరానికి ₹6,000 ఆర్థిక సాయం, పీఎం ఫసల్ బీమా పంట నష్ట రక్షణ, మరియు సాయిల్ హెల్త్ కార్డ్ పథకం అందుబాటులో ఉన్నాయి.",
+      orders: processed,
+      targetOrder,
     };
   }
 
   /**
-   * Consequential Action: Prepare drone booking requiring explicit user confirmation
+   * Consequential Action: Prepare order status update requiring user confirmation
+   */
+  public async prepareOrderStatusUpdate(params: {
+    orderId?: string;
+    newStatus: string;
+    userId?: string;
+  }): Promise<PendingAction | null> {
+    const ordersData = await this.fetchOrdersData(params.userId);
+    let target = null;
+    if (params.orderId) {
+      target = ordersData.orders.find((o) => o.id === params.orderId || o.id?.slice(0, 8) === params.orderId);
+    } else {
+      // Default to latest active order
+      target = ordersData.latest;
+    }
+
+    if (!target) return null;
+
+    const summaryEn = `Are you sure you want to change the status of Order #${target.id.slice(0, 8)} (${target.crop_name}) from '${target.status}' to '${params.newStatus}'? Please say confirm or cancel.`;
+    const summaryTe = `ఆర్డర్ #${target.id.slice(0, 8)} (${target.crop_name}) స్థితిని '${target.status}' నుండి '${params.newStatus}' గా మార్చడానికి ఖరారు చేయమంటారా?`;
+
+    return {
+      id: "pending_status_" + Date.now(),
+      actionType: "update_order_status",
+      category: "consequential",
+      payload: {
+        orderId: target.id,
+        newStatus: params.newStatus,
+      },
+      summaryEn,
+      summaryTe,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 60000,
+    };
+  }
+
+  /**
+   * Consequential Action: Execute verified order status update
+   */
+  public async executeOrderStatusUpdate(pending: PendingAction): Promise<ActionResult> {
+    try {
+      const { orderId, newStatus } = pending.payload;
+      const res = await fetch(`${API_BASE}/orders?id=${orderId}`, {
+        method: "PUT",
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Server rejected order update");
+      }
+
+      const updated = await res.json();
+      return {
+        success: true,
+        messageEn: `Order #${orderId.slice(0, 8)} has been updated to '${newStatus.replace(/_/g, " ")}' successfully!`,
+        messageTe: `ఆర్డర్ #${orderId.slice(0, 8)} విజయవంతంగా '${newStatus}' గా మార్చబడింది!`,
+        data: updated,
+      };
+    } catch (e: any) {
+      return {
+        success: false,
+        messageEn: `Failed to update order status: ${e.message}`,
+        messageTe: `ఆర్డర్ స్థితి మార్చడంలో లోపం ఏర్పడింది: ${e.message}`,
+      };
+    }
+  }
+
+  /**
+   * Consequential Action: Prepare drone booking requiring explicit confirmation
    */
   public prepareDroneBooking(params: {
     crop?: string;
@@ -244,7 +420,7 @@ export class ActionRegistry {
       summaryEn,
       summaryTe,
       createdAt: Date.now(),
-      expiresAt: Date.now() + 90000, // 90 seconds expiry
+      expiresAt: Date.now() + 90000,
     };
   }
 
@@ -263,7 +439,7 @@ export class ActionRegistry {
     try {
       const res = await fetch(`${API_BASE}/drone-bookings`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: this.getAuthHeaders(),
         body: JSON.stringify(pending.payload),
       });
 
@@ -286,6 +462,18 @@ export class ActionRegistry {
         messageTe: `బుకింగ్ చేయడంలో లోపం ఏర్పడింది: ${e.message || "నెట్‌వర్క్ సమస్య"}`,
       };
     }
+  }
+
+  /**
+   * Read-only tool: Government schemes summary
+   */
+  public fetchGovtSchemes(): ActionResult {
+    return {
+      success: true,
+      messageEn: "Available agricultural schemes include: PM-KISAN offering ₹6,000 yearly income support, PM Fasal Bima Yojana for crop loss protection, and Soil Health Card for testing.",
+      messageTe: "ప్రధాన ప్రభుత్వ పథకాలు: పీఎం కిసాన్ ద్వారా సంవత్సరానికి ₹6,000 ఆర్థిక సాయం, పీఎం ఫసల్ బీమా పంట నష్ట రక్షణ, మరియు సాయిల్ హెల్త్ కార్డ్ పథకం అందుబాటులో ఉన్నాయి.",
+      cardType: "schemes",
+    };
   }
 }
 

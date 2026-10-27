@@ -3,10 +3,12 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 import os
 from groq import Groq
+from typing import Optional
+import datetime
 
 weather_router = APIRouter()
 
-WEATHER_API_KEY = "c2520c02b4a606631e800dd742bab498"
+WEATHER_API_KEY = os.getenv("WEATHER_API_KEY", "c2520c02b4a606631e800dd742bab498")
 
 def owm_to_meteo_code(id: int):
     if 200 <= id < 300: return 95
@@ -24,7 +26,86 @@ def owm_to_meteo_code(id: int):
     if id in (803, 804): return 3
     return 0
 
-from typing import Optional
+async def reverse_geocode(lat: float, lon: float) -> dict:
+    """
+    Resolve coordinates into administrative areas:
+    village/city, mandal/taluk, district, and state.
+    Strictly reports only verified details without fabricating nonexistent mandals or villages.
+    """
+    # 1. OpenStreetMap Nominatim with agricultural User-Agent
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            headers = {"User-Agent": "AgroSmartAI/1.0 (contact@smartfarming.ai)"}
+            res = await client.get(
+                f"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={lat}&lon={lon}",
+                headers=headers
+            )
+            if res.status_code == 200:
+                data = res.json()
+                address = data.get("address", {})
+                village = address.get("village") or address.get("hamlet") or address.get("suburb") or address.get("neighbourhood")
+                mandal = address.get("county") or address.get("subdistrict") or address.get("tehsil")
+                district = address.get("state_district") or address.get("district")
+                state = address.get("state")
+                city = address.get("city") or address.get("town") or address.get("municipality")
+                country = address.get("country", "India")
+                
+                parts = [p for p in [village or city, mandal, district, state] if p]
+                formatted = ", ".join(parts) if parts else data.get("display_name", f"{lat:.4f}, {lon:.4f}")
+                
+                return {
+                    "village": village,
+                    "city": city,
+                    "mandal": mandal,
+                    "district": district,
+                    "state": state,
+                    "country": country,
+                    "formatted_location": formatted,
+                    "verified": True,
+                    "source": "gps_reverse_geocoded"
+                }
+    except Exception as e:
+        print(f"Nominatim reverse geocode exception: {e}")
+
+    # 2. OpenWeather reverse geocoding fallback
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            res = await client.get(
+                f"http://api.openweathermap.org/geo/1.0/reverse?lat={lat}&lon={lon}&limit=1&appid={WEATHER_API_KEY}"
+            )
+            if res.status_code == 200:
+                items = res.json()
+                if items and len(items) > 0:
+                    item = items[0]
+                    city = item.get("name")
+                    state = item.get("state")
+                    country = item.get("country", "IN")
+                    parts = [p for p in [city, state] if p]
+                    return {
+                        "village": None,
+                        "city": city,
+                        "mandal": None,
+                        "district": None,
+                        "state": state,
+                        "country": country,
+                        "formatted_location": ", ".join(parts) if parts else f"{lat:.4f}, {lon:.4f}",
+                        "verified": True,
+                        "source": "openweather_reverse_geocoded"
+                    }
+    except Exception as e:
+        print(f"OpenWeather reverse geocode fallback exception: {e}")
+
+    return {
+        "village": None,
+        "city": None,
+        "mandal": None,
+        "district": None,
+        "state": None,
+        "country": "India",
+        "formatted_location": f"Coordinates ({lat:.4f}, {lon:.4f})",
+        "verified": False,
+        "source": "coordinates_only"
+    }
 
 class WeatherRequest(BaseModel):
     region: Optional[str] = "Andhra Pradesh"
@@ -34,11 +115,17 @@ class WeatherRequest(BaseModel):
 @weather_router.post("/api/weather")
 async def get_weather(req: WeatherRequest):
     region_query = req.region.strip() if req.region else "Andhra Pradesh"
+    has_coords = req.lat is not None and req.lon is not None
+    now_iso = datetime.datetime.utcnow().isoformat()
     
-    # Try fetching from OpenWeatherMap
+    geo_info = {}
+    if has_coords:
+        geo_info = await reverse_geocode(req.lat, req.lon)
+
+    # Fetch from OpenWeatherMap
     try:
-        async with httpx.AsyncClient(timeout=4.0) as client:
-            if req.lat is not None and req.lon is not None:
+        async with httpx.AsyncClient(timeout=4.5) as client:
+            if has_coords:
                 cur_url = f"https://api.openweathermap.org/data/2.5/weather?lat={req.lat}&lon={req.lon}&appid={WEATHER_API_KEY}&units=metric"
                 fore_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={req.lat}&lon={req.lon}&appid={WEATHER_API_KEY}&units=metric"
             else:
@@ -52,8 +139,8 @@ async def get_weather(req: WeatherRequest):
                 current_data = current_res.json()
                 forecast_data = forecast_res.json()
                 
-                name = current_data.get("name", region_query)
-                country = current_data.get("sys", {}).get("country", "IN")
+                name = geo_info.get("formatted_location") or current_data.get("name", region_query)
+                country = geo_info.get("country") or current_data.get("sys", {}).get("country", "IN")
                 latitude = current_data.get("coord", {}).get("lat", req.lat or 15.8281)
                 longitude = current_data.get("coord", {}).get("lon", req.lon or 78.0373)
                 current_condition = current_data.get("weather", [{}])[0]
@@ -86,7 +173,21 @@ async def get_weather(req: WeatherRequest):
                 forecast = list(daily_forecasts.values())[:5]
                 
                 return {
-                    "location": {"name": name, "country": country, "latitude": latitude, "longitude": longitude},
+                    "location": {
+                        "name": name,
+                        "formatted_location": name,
+                        "village": geo_info.get("village"),
+                        "city": geo_info.get("city") or current_data.get("name"),
+                        "mandal": geo_info.get("mandal"),
+                        "district": geo_info.get("district"),
+                        "state": geo_info.get("state"),
+                        "country": country,
+                        "latitude": latitude,
+                        "longitude": longitude,
+                        "detection_mode": "exact_gps" if has_coords else "manual",
+                        "verified": geo_info.get("verified", False) if has_coords else False,
+                        "updated_at": now_iso
+                    },
                     "current": {
                         "temperature": round(current_data["main"]["temp"], 1),
                         "humidity": current_data["main"]["humidity"],
@@ -101,7 +202,6 @@ async def get_weather(req: WeatherRequest):
         print(f"OpenWeather fetch exception: {e}")
 
     # Fallback to realistic agro-climatic data
-    import datetime
     today = datetime.date.today()
     fallback_forecast = []
     base_temps = [31, 32, 30, 29, 31]
@@ -120,8 +220,23 @@ async def get_weather(req: WeatherRequest):
             "condition": conditions[i]
         })
 
+    loc_name = geo_info.get("formatted_location") or region_query
     return {
-        "location": {"name": region_query, "country": "IN", "latitude": req.lat or 15.8281, "longitude": req.lon or 78.0373},
+        "location": {
+            "name": loc_name,
+            "formatted_location": loc_name,
+            "village": geo_info.get("village"),
+            "city": geo_info.get("city"),
+            "mandal": geo_info.get("mandal"),
+            "district": geo_info.get("district"),
+            "state": geo_info.get("state"),
+            "country": "IN",
+            "latitude": req.lat or 15.8281,
+            "longitude": req.lon or 78.0373,
+            "detection_mode": "exact_gps" if has_coords else "manual",
+            "verified": geo_info.get("verified", False) if has_coords else False,
+            "updated_at": now_iso
+        },
         "current": {
             "temperature": 29.5,
             "humidity": 62,

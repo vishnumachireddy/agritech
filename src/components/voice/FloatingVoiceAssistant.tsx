@@ -23,6 +23,8 @@ import {
   Cloud,
   ScanLine,
   Plane,
+  Package,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,17 +84,23 @@ export const FloatingVoiceAssistant: React.FC = () => {
 
   const quickChips = isTelugu
     ? [
+        { label: "రిజెక్ట్ ఆర్డర్లు", query: "తిరస్కరించిన ఆర్డర్లు ఎన్ని ఉన్నాయి?", icon: AlertTriangle },
+        { label: "యాక్టివ్ ఆర్డర్లు", query: "ప్రస్తుతం ఎన్ని యాక్టివ్ ఆర్డర్లు ఉన్నాయి?", icon: Package },
+        { label: "పెండింగ్ ఆర్డర్లు", query: "నా పెండింగ్ ఆర్డర్లు చూపించు", icon: Clock },
+        { label: "బల్క్ ఆర్డర్ శాతం", query: "బల్క్ ఆర్డర్ ఎంత శాతం పూర్తయింది?", icon: TrendingUp },
+        { label: "తాజా ఆర్డర్", query: "నా తాజా ఆర్డర్ స్థితి ఏమిటి?", icon: CheckCircle2 },
         { label: "పంట స్కానర్", query: "పంట వ్యాధి స్కానర్ తెరువు", icon: ScanLine },
-        { label: "నేటి ధరలు", query: "నేటి మార్కెట్ ధరలు చెప్పు", icon: TrendingUp },
         { label: "వాతావరణం", query: "వాతావరణం ఎలా ఉంది", icon: Cloud },
-        { label: "డ్రోన్ స్ప్రే", query: "డ్రోన్ స్ప్రే బుకింగ్ కావాలి", icon: Plane },
         { label: "ఈ పేజీ సహాయం", query: "ఈ పేజీ గురించి వివరించు", icon: HelpCircle },
       ]
     : [
+        { label: "Rejected Orders", query: "How many rejected orders do I have?", icon: AlertTriangle },
+        { label: "Active Orders", query: "How many active orders are there?", icon: Package },
+        { label: "Pending Orders", query: "Show me my pending orders", icon: Clock },
+        { label: "Bulk Progress", query: "What percentage of this bulk order is completed?", icon: TrendingUp },
+        { label: "Latest Order", query: "What is the status of my latest order?", icon: CheckCircle2 },
         { label: "Crop Scanner", query: "Open crop disease scanner", icon: ScanLine },
-        { label: "Live Prices", query: "What are today's crop prices", icon: TrendingUp },
-        { label: "Weather", query: "How is the weather today", icon: Cloud },
-        { label: "Book Drone", query: "Book a drone for spraying", icon: Plane },
+        { label: "Weather", query: "How is the weather today?", icon: Cloud },
         { label: "Explain Page", query: "Explain this page to me", icon: HelpCircle },
       ];
 
@@ -233,6 +241,84 @@ export const FloatingVoiceAssistant: React.FC = () => {
                   }`}
                 >
                   <p className="whitespace-pre-wrap leading-relaxed">{item.text}</p>
+
+                  {/* Concise Result Cards */}
+                  {item.cardType === "orders_list" && Array.isArray(item.cardData) && (
+                    <div className="mt-2.5 space-y-1.5 pt-2 border-t border-border/50 text-xs">
+                      {item.cardData.slice(0, 4).map((ord: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between p-1.5 bg-background/80 rounded-md border border-border/40 text-[11px]">
+                          <div className="min-w-0 pr-1">
+                            <p className="font-semibold truncate text-foreground">{ord.crop_name}</p>
+                            <p className="text-[10px] text-muted-foreground">{ord.quantity} kg • ₹{ord.total_price}</p>
+                          </div>
+                          <Badge
+                            variant={ord.status === "rejected" ? "destructive" : ord.status === "pending" ? "outline" : "default"}
+                            className="text-[9px] py-0 px-1.5 capitalize"
+                          >
+                            {ord.status?.replace(/_/g, " ")}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {item.cardType === "order_summary" && item.cardData && (
+                    <div className="mt-2.5 p-2 bg-background/80 rounded-lg border border-border/50 text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-foreground text-xs">{item.cardData.crop_name}</span>
+                        <Badge className="text-[9px] capitalize">{item.cardData.status}</Badge>
+                      </div>
+                      <div className="flex justify-between text-[11px] text-muted-foreground pt-0.5">
+                        <span>Quantity: <strong>{item.cardData.quantity} kg</strong></span>
+                        <span>Total: <strong>₹{item.cardData.total_price}</strong></span>
+                      </div>
+                    </div>
+                  )}
+
+                  {item.cardType === "bulk_progress" && item.cardData && (
+                    <div className="mt-2.5 p-2.5 bg-background/80 rounded-lg border border-border/50 text-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-foreground text-xs">{item.cardData.crop_name}</span>
+                        <span className="font-bold text-primary text-xs">{item.cardData.progress_percentage}%</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-primary h-full rounded-full transition-all"
+                          style={{ width: `${item.cardData.progress_percentage}%` }}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 text-[10px] text-muted-foreground">
+                        <span>Fulfilled: <strong>{item.cardData.fulfilled_quantity} {item.cardData.unit}</strong></span>
+                        <span className="text-right">Remaining: <strong>{item.cardData.remaining_quantity} {item.cardData.unit}</strong></span>
+                      </div>
+                    </div>
+                  )}
+
+                  {item.cardType === "weather" && item.cardData && (
+                    <div className="mt-2.5 p-2 bg-background/80 rounded-lg border border-border/50 text-xs space-y-1">
+                      <p className="font-semibold text-foreground text-xs">
+                        {item.cardData.location?.formatted_location || item.cardData.location?.name}
+                      </p>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-sm text-primary">
+                          {Math.round(item.cardData.current?.temperature || 30)}°C
+                        </span>
+                        <span>{item.cardData.current?.condition}</span>
+                        <span className="text-muted-foreground">💧 {item.cardData.current?.humidity}%</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {item.cardType === "price_list" && Array.isArray(item.cardData) && (
+                    <div className="mt-2.5 space-y-1 pt-2 border-t border-border/50 text-xs">
+                      {item.cardData.map((c: any, idx: number) => (
+                        <div key={idx} className="flex justify-between items-center text-[11px] p-1 bg-background/80 rounded border border-border/40">
+                          <span className="font-medium text-foreground">{c.name}</span>
+                          <span className="font-bold text-primary">₹{c.price}/{c.unit || "kg"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <span className="text-[10px] text-muted-foreground/70 mt-1 px-1">
                   {item.time}

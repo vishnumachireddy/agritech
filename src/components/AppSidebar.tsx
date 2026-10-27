@@ -1,7 +1,7 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, ScanLine, Landmark, Cloud, BarChart3,
-  TrendingUp, MapPin, Droplets, FlaskConical, BookOpen, ShoppingCart, LogOut,
+  MapPin, Droplets, FlaskConical, BookOpen, ShoppingCart, LogOut,
   Clock, Plane, ShieldCheck
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,7 +16,6 @@ const navItems = [
   { to: "/farmer/irrigation", label: "Irrigation", icon: Droplets },
   { to: "/farmer/spray-booking", label: "Drone & Spray", icon: Plane },
   { to: "/farmer/demand-supply", label: "Demand & Supply", icon: BarChart3 },
-  { to: "/farmer/market-insights", label: "Market Insights", icon: TrendingUp },
   { to: "/farmer/regional-insights", label: "Regional Insights", icon: MapPin },
   { to: "/farmer/govt-schemes", label: "Govt Schemes", icon: Landmark },
   { to: "/farmer/fertilizer", label: "AI Chatbot", icon: FlaskConical },

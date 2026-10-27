@@ -20,7 +20,6 @@ const DICTIONARY: Record<string, string> = {
   "Irrigation": "నీటిపారుదల సలహాలు",
   "Drone & Spray": "డ్రోన్ & స్ప్రే బుకింగ్",
   "Demand & Supply": "డిమాండ్ & సరఫరా",
-  "Market Insights": "మార్కెట్ ధరలు & అంచనాలు",
   "Regional Insights": "ప్రాంతీయ సమాచారం",
   "Govt Schemes": "ప్రభుత్వ పథకాలు",
   "AI Chatbot": "రైతు AI సహాయకుడు",

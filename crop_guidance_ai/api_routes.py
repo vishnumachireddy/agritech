@@ -288,15 +288,83 @@ IN_MEMORY_TABLES["government_schemes"] = [
 
 IN_MEMORY_TABLES["orders"] = [
     {
+        "id": "order-501",
+        "consumer_id": "consumer-demo-1",
+        "customer_id": "consumer-demo-1",
+        "farmer_id": "farmer-demo-1",
+        "crop_id": "crop-101",
+        "crop_name": "Organic Sona Masoori Rice",
+        "quantity": 50,
+        "price_per_kg": 55,
+        "total_price": 2750,
+        "status": "pending",
+        "consumer_name": "Anita Sharma",
+        "created_at": datetime.utcnow().isoformat()
+    },
+    {
+        "id": "order-502",
+        "consumer_id": "consumer-demo-1",
+        "customer_id": "consumer-demo-1",
+        "farmer_id": "farmer-demo-1",
+        "crop_id": "crop-102",
+        "crop_name": "Raw Organic Cotton Bales",
+        "quantity": 100,
+        "price_per_kg": 120,
+        "total_price": 12000,
+        "status": "delivered",
+        "consumer_name": "Anita Sharma",
+        "created_at": datetime.utcnow().isoformat()
+    },
+    {
+        "id": "ord-801",
+        "consumer_id": "consumer-demo-1",
+        "customer_id": "consumer-demo-1",
+        "farmer_id": "farmer-demo-1",
+        "crop_id": "crop-101",
+        "crop_name": "Organic Sona Masoori Rice",
+        "quantity": 50,
+        "price_per_kg": 55,
+        "total_price": 2750,
+        "status": "pending",
+        "consumer_name": "Anita Sharma",
+        "created_at": datetime.utcnow().isoformat()
+    },
+    {
         "id": "c3fd72de-2a8c-4a53-8b9a-d6326843435c",
         "consumer_id": "consumer-demo-1",
+        "customer_id": "consumer-demo-1",
         "farmer_id": "farmer-demo-1",
+        "crop_id": "crop-101",
         "crop_name": "Organic Sona Masoori Rice",
         "quantity": 10,
         "price_per_kg": 55,
         "total_price": 550,
         "status": "pending",
         "consumer_name": "Anita Sharma",
+        "created_at": datetime.utcnow().isoformat()
+    }
+]
+
+IN_MEMORY_TABLES["bulk_orders"] = [
+    {
+        "id": "bulk-901",
+        "customer_id": "consumer-demo-1",
+        "consumer_id": "consumer-demo-1",
+        "farmer_id": "farmer-demo-1",
+        "farmer_name": "Ramesh Kumar",
+        "crop_name": "Organic Sona Masoori Rice",
+        "quantity_required": 1000,
+        "fulfilled_quantity": 250,
+        "total_committed": 250,
+        "remaining_quantity": 750,
+        "progress_pct": 25.0,
+        "unit": "kg",
+        "region": "Andhra Pradesh",
+        "expected_delivery_start": "2026-03-01",
+        "expected_delivery_end": "2026-03-15",
+        "status": "open",
+        "order_type": "bulk",
+        "is_bulk": True,
         "created_at": datetime.utcnow().isoformat()
     }
 ]
@@ -619,6 +687,8 @@ async def get_records(table: str, request: Request):
 
     return results
 
+ALLOWED_ORDER_STATUSES = {"pending", "accepted", "packed", "out_for_delivery", "delivered", "rejected", "cancelled"}
+
 @router.post("/api/{table}")
 async def create_record(table: str, request: Request):
     data = await request.json()
@@ -635,6 +705,21 @@ async def create_record(table: str, request: Request):
         data["customer_id"] = data["consumer_id"]
     elif "customer_id" in data and "consumer_id" not in data:
         data["consumer_id"] = data["customer_id"]
+
+    # Bulk order calculations - calculate exact progress using (fulfilled / total) * 100
+    if table == "bulk_orders" or data.get("is_bulk") or data.get("order_type") == "bulk":
+        qty_req = float(data.get("quantity_required", data.get("quantity", 100)))
+        fulfilled = float(data.get("fulfilled_quantity", 0))
+        # Clamp between 0 and qty_req to prevent negative or invalid values
+        fulfilled = max(0.0, min(qty_req, fulfilled))
+        remaining = max(0.0, qty_req - fulfilled)
+        progress = round((fulfilled / qty_req) * 100, 1) if qty_req > 0 else 0.0
+
+        data["quantity_required"] = qty_req
+        data["fulfilled_quantity"] = fulfilled
+        data["total_committed"] = fulfilled
+        data["remaining_quantity"] = remaining
+        data["progress_pct"] = progress
 
     if is_mongo_online:
         try:
@@ -658,11 +743,14 @@ async def create_record(table: str, request: Request):
             "farmer_id": data.get("farmer_id"),
             "farmer_name": data.get("farmer_name", "Farmer"),
             "crop_name": data.get("crop_name", "Bulk Crop"),
-            "quantity_required": data.get("quantity", 100),
-            "total_committed": data.get("quantity", 100),
+            "quantity_required": data.get("quantity_required", data.get("quantity", 100)),
+            "fulfilled_quantity": data.get("fulfilled_quantity", 0),
+            "total_committed": data.get("fulfilled_quantity", 0),
+            "remaining_quantity": data.get("remaining_quantity", data.get("quantity", 100)),
+            "progress_pct": data.get("progress_pct", 0.0),
             "unit": "kg",
             "region": data.get("region", "Andhra Pradesh"),
-            "status": data.get("status", "pending"),
+            "status": data.get("status", "open"),
             "order_type": "bulk",
             "is_bulk": True,
             "created_at": data["created_at"]
@@ -687,6 +775,11 @@ async def create_record(table: str, request: Request):
             "farmer_name": data.get("farmer_name", "Market Demand"),
             "crop_name": data.get("crop_name", "Bulk Crop"),
             "quantity": data.get("quantity_required", 100),
+            "quantity_required": data.get("quantity_required", 100),
+            "fulfilled_quantity": data.get("fulfilled_quantity", 0),
+            "total_committed": data.get("fulfilled_quantity", 0),
+            "remaining_quantity": data.get("remaining_quantity", data.get("quantity_required", 100)),
+            "progress_pct": data.get("progress_pct", 0.0),
             "price_per_kg": 50,
             "total_price": float(data.get("quantity_required", 100)) * 50,
             "status": data.get("status", "open"),
@@ -719,40 +812,151 @@ async def update_record(table: str, request: Request):
     query_params = dict(request.query_params)
     data = await request.json()
     
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=400, detail="Invalid JSON update payload")
+
+    # 1. Status Validation for Orders
+    if table == "orders" and "status" in data:
+        normalized_status = str(data["status"]).strip().lower()
+        if normalized_status not in ALLOWED_ORDER_STATUSES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid order status '{data['status']}'. Allowed statuses are: {', '.join(sorted(ALLOWED_ORDER_STATUSES))}"
+            )
+        data["status"] = normalized_status
+        data["updated_at"] = datetime.utcnow().isoformat()
+
+    # 2. Bulk Orders Quantity & Progress Recalculation
+    if table == "bulk_orders" or "fulfilled_quantity" in data or "total_committed" in data or "quantity_required" in data:
+        if "fulfilled_quantity" in data or "total_committed" in data or "quantity_required" in data:
+            current_target = None
+            if table == "bulk_orders":
+                # Find current record to obtain base values
+                if is_mongo_online:
+                    try:
+                        current_target = await db.get_collection("bulk_orders").find_one(query_params, {"_id": 0})
+                    except Exception:
+                        pass
+                if not current_target:
+                    current_target = next((r for r in IN_MEMORY_TABLES.get("bulk_orders", []) if all(str(r.get(k)) == str(v) for k, v in query_params.items())), None)
+                
+                base_req = float(data.get("quantity_required") or (current_target.get("quantity_required") if current_target else 100))
+                base_fulfilled = float(data.get("fulfilled_quantity") if "fulfilled_quantity" in data else data.get("total_committed") if "total_committed" in data else (current_target.get("fulfilled_quantity", 0) if current_target else 0))
+                
+                # Formula: Progress (%) = (Fulfilled quantity / Total ordered quantity) * 100
+                clamped_fulfilled = max(0.0, min(base_req, base_fulfilled))
+                remaining = max(0.0, base_req - clamped_fulfilled)
+                progress = round((clamped_fulfilled / base_req) * 100, 1) if base_req > 0 else 0.0
+                
+                data["quantity_required"] = base_req
+                data["fulfilled_quantity"] = clamped_fulfilled
+                data["total_committed"] = clamped_fulfilled
+                data["remaining_quantity"] = remaining
+                data["progress_pct"] = progress
+                
+                # Consistent status transition: Only mark fulfilled when 100% completed
+                if clamped_fulfilled >= base_req and base_req > 0 and data.get("status") not in ("cancelled", "rejected"):
+                    data["status"] = "fulfilled"
+                elif clamped_fulfilled > 0 and data.get("status") == "open":
+                    data["status"] = "in_progress"
+
     if query_params:
         target_id = query_params.get("id")
+
+        # 3. Synchronize with corresponding crop / yield record
+        if table == "orders" and "status" in data:
+            new_status = data["status"]
+            # Look up order details
+            target_order = None
+            if is_mongo_online:
+                try:
+                    target_order = await db.get_collection("orders").find_one(query_params, {"_id": 0})
+                except Exception:
+                    pass
+            if not target_order:
+                target_order = next((r for r in IN_MEMORY_TABLES.get("orders", []) if all(str(r.get(k)) == str(v) for k, v in query_params.items())), None)
+
+            if target_order:
+                crop_name = target_order.get("crop_name")
+                crop_id = target_order.get("crop_id")
+                qty = float(target_order.get("quantity", 0))
+
+                crop_filter = {}
+                if crop_id:
+                    crop_filter["id"] = crop_id
+                elif crop_name:
+                    crop_filter["name"] = crop_name
+
+                if crop_filter:
+                    crop_update = {
+                        "last_order_status": new_status,
+                        "last_updated": datetime.utcnow().isoformat()
+                    }
+                    if new_status in ("accepted", "packed", "delivered"):
+                        crop_update["yield_status"] = new_status
+                    if is_mongo_online:
+                        try:
+                            await db.get_collection("crops").update_many(crop_filter, {"$set": crop_update})
+                        except Exception:
+                            pass
+                    for c in IN_MEMORY_TABLES.get("crops", []):
+                        if (crop_id and str(c.get("id")) == str(crop_id)) or (crop_name and str(c.get("name")) == str(crop_name)):
+                            c.update(crop_update)
 
         if is_mongo_online:
             try:
                 collection = db.get_collection(table)
-                await collection.update_many(query_params, {"$set": data})
+                update_res = await collection.update_many(query_params, {"$set": data})
+                
+                # If document was not yet in MongoDB (e.g. from in-memory seeds), persist the full record!
+                if update_res.matched_count == 0:
+                    mem_match = next((r for r in IN_MEMORY_TABLES.get(table, []) if all(str(r.get(k)) == str(v) for k, v in query_params.items())), None)
+                    if mem_match:
+                        merged = dict(mem_match)
+                        merged.update(data)
+                        await collection.insert_one(dict(merged))
+                    elif target_id:
+                        merged = dict(query_params)
+                        merged.update(data)
+                        merged.setdefault("created_at", datetime.utcnow().isoformat())
+                        await collection.insert_one(dict(merged))
+
                 cursor = collection.find(query_params, {"_id": 0})
                 results = await cursor.to_list(length=100)
                 
-                # Cross-table synchronization for status updates on bulk orders
-                if "status" in data:
-                    new_status = data["status"]
+                # Cross-table synchronization for status & quantity updates on bulk orders
+                if "status" in data or "fulfilled_quantity" in data:
+                    sync_fields = {}
+                    if "status" in data: sync_fields["status"] = data["status"]
+                    if "fulfilled_quantity" in data:
+                        sync_fields["fulfilled_quantity"] = data["fulfilled_quantity"]
+                        sync_fields["total_committed"] = data["fulfilled_quantity"]
+                        sync_fields["remaining_quantity"] = data["remaining_quantity"]
+                        sync_fields["progress_pct"] = data["progress_pct"]
+
                     if table == "orders":
                         sync_query = {"$or": [{"id": target_id}, {"order_id": target_id}, {"bulk_order_id": target_id}]} if target_id else query_params
-                        await db.get_collection("bulk_orders").update_many(sync_query, {"$set": {"status": new_status}})
-                        await db.get_collection("bulk_requests").update_many(sync_query, {"$set": {"status": new_status}})
+                        await db.get_collection("bulk_orders").update_many(sync_query, {"$set": sync_fields})
+                        await db.get_collection("bulk_requests").update_many(sync_query, {"$set": sync_fields})
                     elif table == "bulk_orders":
                         sync_query = {"$or": [{"id": target_id}, {"order_id": target_id}, {"bulk_order_id": target_id}]} if target_id else query_params
-                        await db.get_collection("orders").update_many(sync_query, {"$set": {"status": new_status}})
+                        await db.get_collection("orders").update_many(sync_query, {"$set": sync_fields})
 
                 if results:
                     payload_data = results[0] if len(results) > 0 else data
                     try:
                         await manager.broadcast(table, "UPDATE", payload_data)
-                        if "status" in data and target_id:
+                        if target_id:
                             if table == "orders":
-                                await manager.broadcast("bulk_orders", "UPDATE", {**payload_data, "id": target_id, "status": data["status"]})
-                                await manager.broadcast("bulk_requests", "UPDATE", {**payload_data, "id": target_id, "status": data["status"]})
+                                await manager.broadcast("bulk_orders", "UPDATE", {**payload_data, "id": target_id, **data})
+                                await manager.broadcast("bulk_requests", "UPDATE", {**payload_data, "id": target_id, **data})
                             elif table == "bulk_orders":
-                                await manager.broadcast("orders", "UPDATE", {**payload_data, "id": target_id, "status": data["status"]})
+                                await manager.broadcast("orders", "UPDATE", {**payload_data, "id": target_id, **data})
                     except Exception:
                         pass
                     return results
+            except HTTPException:
+                raise
             except Exception as e:
                 mark_mongo_offline()
                 print(f"MongoDB update_record fallback for table {table}: {e}")
@@ -770,29 +974,36 @@ async def update_record(table: str, request: Request):
                 updated_items.append(clean_r)
 
         # Cross-table in-memory synchronization
-        if "status" in data and target_id:
-            new_status = data["status"]
+        if target_id and ("status" in data or "fulfilled_quantity" in data):
+            sync_fields = {}
+            if "status" in data: sync_fields["status"] = data["status"]
+            if "fulfilled_quantity" in data:
+                sync_fields["fulfilled_quantity"] = data["fulfilled_quantity"]
+                sync_fields["total_committed"] = data["fulfilled_quantity"]
+                sync_fields["remaining_quantity"] = data["remaining_quantity"]
+                sync_fields["progress_pct"] = data["progress_pct"]
+
             if table == "orders":
                 for r in IN_MEMORY_TABLES.get("bulk_orders", []):
                     if r.get("id") == target_id or r.get("order_id") == target_id:
-                        r["status"] = new_status
+                        r.update(sync_fields)
                 for r in IN_MEMORY_TABLES.get("bulk_requests", []):
                     if r.get("id") == target_id or r.get("order_id") == target_id:
-                        r["status"] = new_status
+                        r.update(sync_fields)
             elif table == "bulk_orders":
                 for r in IN_MEMORY_TABLES.get("orders", []):
                     if r.get("id") == target_id or r.get("bulk_order_id") == target_id:
-                        r["status"] = new_status
+                        r.update(sync_fields)
 
         try:
             fallback_data = updated_items[0] if len(updated_items) > 0 else data
             await manager.broadcast(table, "UPDATE", fallback_data)
-            if "status" in data and target_id:
+            if target_id:
                 if table == "orders":
-                    await manager.broadcast("bulk_orders", "UPDATE", {**fallback_data, "id": target_id, "status": data["status"]})
-                    await manager.broadcast("bulk_requests", "UPDATE", {**fallback_data, "id": target_id, "status": data["status"]})
+                    await manager.broadcast("bulk_orders", "UPDATE", {**fallback_data, "id": target_id, **data})
+                    await manager.broadcast("bulk_requests", "UPDATE", {**fallback_data, "id": target_id, **data})
                 elif table == "bulk_orders":
-                    await manager.broadcast("orders", "UPDATE", {**fallback_data, "id": target_id, "status": data["status"]})
+                    await manager.broadcast("orders", "UPDATE", {**fallback_data, "id": target_id, **data})
         except Exception:
             pass
 

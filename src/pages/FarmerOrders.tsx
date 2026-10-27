@@ -35,50 +35,51 @@ const FarmerOrders = () => {
   const fetchOrders = async () => {
     if (!user) return;
     try {
-      const res = await fetch(`${API_BASE}/orders?farmer_id=${user.id}`);
+      const token = localStorage.getItem("agri_token") || localStorage.getItem("access_token");
+      const headers = {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+
+      const res = await fetch(`${API_BASE}/orders?farmer_id=${user.id}`, { headers });
       let data: any[] = [];
       if (res.ok) {
         data = await res.json();
       }
 
       if (!Array.isArray(data) || data.length === 0) {
-        const allRes = await fetch(`${API_BASE}/orders`);
+        const allRes = await fetch(`${API_BASE}/orders`, { headers });
         if (allRes.ok) {
-          data = await allRes.json();
+          const allOrders = await allRes.json();
+          if (Array.isArray(allOrders)) {
+            data = allOrders.filter(
+              (o: any) => o.farmer_id === user.id || o.farmer_id === "farmer-demo-1" || !o.farmer_id
+            );
+            if (data.length === 0 && allOrders.length > 0) {
+              data = allOrders;
+            }
+          }
         }
       }
 
-      if (!Array.isArray(data) || data.length === 0) {
-        data = [
-          {
-            id: "ord-801",
-            consumer_id: "cons-101",
-            farmer_id: user.id,
-            crop_name: "Organic Sona Masoori Rice",
-            quantity: 50,
-            price_per_kg: 55,
-            total_price: 2750,
-            status: "pending",
-            created_at: new Date().toISOString(),
-            consumer_name: "Verified Buyer"
-          }
-        ];
+      if (Array.isArray(data) && data.length > 0) {
+        setOrders(
+          data.map((o) => ({
+            id: o.id || "ord-801",
+            consumer_id: o.consumer_id || o.customer_id || "cons-101",
+            farmer_id: o.farmer_id || user.id,
+            crop_name: o.crop_name || "Organic Crop",
+            quantity: o.quantity || 50,
+            price_per_kg: o.price_per_kg || 50,
+            total_price: o.total_price || 2500,
+            status: o.status || "pending",
+            created_at: o.created_at || new Date().toISOString(),
+            consumer_name: o.consumer_name || "Verified Buyer",
+          }))
+        );
+      } else {
+        setOrders([]);
       }
-
-      setOrders(
-        data.map((o) => ({
-          id: o.id || "ord-801",
-          consumer_id: o.consumer_id || "cons-101",
-          farmer_id: o.farmer_id || user.id,
-          crop_name: o.crop_name || "Organic Crop",
-          quantity: o.quantity || 50,
-          price_per_kg: o.price_per_kg || 50,
-          total_price: o.total_price || 2500,
-          status: o.status || "pending",
-          created_at: o.created_at || new Date().toISOString(),
-          consumer_name: o.consumer_name || "Verified Buyer",
-        }))
-      );
     } catch (err) {
       console.error("fetchOrders error in FarmerOrders:", err);
     } finally {
@@ -217,14 +218,27 @@ const FarmerOrders = () => {
     );
 
     try {
+      const token = localStorage.getItem("agri_token") || localStorage.getItem("access_token");
       const res = await fetch(`${API_BASE}/orders?id=${orderId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ status: newStatus })
       });
 
       if (!res.ok) {
-        throw new Error(`Server returned status ${res.status}`);
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Server returned status ${res.status}`);
+      }
+
+      const updatedRecords = await res.json();
+      if (Array.isArray(updatedRecords) && updatedRecords.length > 0) {
+        const updated = updatedRecords[0];
+        setOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? { ...o, status: updated.status } : o))
+        );
       }
 
       toast.success(`Order status updated to ${newStatus.replace(/_/g, " ")}`);
@@ -240,7 +254,7 @@ const FarmerOrders = () => {
       await fetchOrders();
     } catch (err: any) {
       console.error("Order status update failed:", err);
-      toast.error(`Failed to update order status. Refreshing orders.`);
+      toast.error(err.message || "Failed to update order status. Refreshing orders.");
       await fetchOrders();
     } finally {
       setUpdatingAction(null);

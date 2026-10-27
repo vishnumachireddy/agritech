@@ -286,7 +286,7 @@ const RegionalInsights = () => {
                 <p className="text-sm text-muted-foreground mt-1">
                   Our regional models indicate that <strong>{topCrop || "N/A"}</strong> covers the largest cultivated area in {region},
                   while <strong>{bestProfit || "N/A"}</strong> commands the highest average realization per kg this season.
-                  Check the <span className="text-primary font-semibold">Market Insights</span> module for real-time live mandi rates.
+                  Check the <span className="text-primary font-semibold">Demand & Supply</span> module for real-time buyer demand and wholesale rates.
                 </p>
               </div>
             </div>

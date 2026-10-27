@@ -22,14 +22,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from market_engine import router as market_router
 from api_routes import router as api_router
 from edge_routes import weather_router
 from spray_routes import spray_router
 import json
 import base64
 import random
-app.include_router(market_router)
 app.include_router(weather_router)
 app.include_router(spray_router)
 app.include_router(api_router)

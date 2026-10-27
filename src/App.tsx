@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { LanguageProvider } from "@/hooks/useLanguage";
@@ -22,7 +22,6 @@ import CropScanner from "./pages/CropScanner";
 import GovtSchemes from "./pages/GovtSchemes";
 import Weather from "./pages/Weather";
 import DemandSupply from "./pages/DemandSupply";
-import MarketInsights from "./pages/MarketInsights";
 import RegionalInsights from "./pages/RegionalInsights";
 import Irrigation from "./pages/Irrigation";
 import Fertilizer from "./pages/Fertilizer";
@@ -89,7 +88,8 @@ const App = () => (
                   <Route path="/farmer/govt-schemes" element={<FarmerRoute><GovtSchemes /></FarmerRoute>} />
                   <Route path="/farmer/weather" element={<FarmerRoute><Weather /></FarmerRoute>} />
                   <Route path="/farmer/demand-supply" element={<FarmerRoute><DemandSupply /></FarmerRoute>} />
-                  <Route path="/farmer/market-insights" element={<FarmerRoute><MarketInsights /></FarmerRoute>} />
+                  <Route path="/farmer/market-insights" element={<Navigate to="/farmer/dashboard" replace />} />
+                  <Route path="/market-insights" element={<Navigate to="/farmer/dashboard" replace />} />
                   <Route path="/farmer/regional-insights" element={<FarmerRoute><RegionalInsights /></FarmerRoute>} />
                   <Route path="/farmer/irrigation" element={<FarmerRoute><Irrigation /></FarmerRoute>} />
                   <Route path="/farmer/fertilizer" element={<FarmerRoute><Fertilizer /></FarmerRoute>} />

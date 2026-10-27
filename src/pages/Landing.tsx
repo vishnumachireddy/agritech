@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Leaf, Shield, TrendingUp, Users, ArrowRight, Sprout, Sun, Cpu, Zap, Globe } from 'lucide-react';
+import { Leaf, Shield, ShoppingCart, Users, ArrowRight, Sprout, Sun, Cpu, Zap, Globe } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -122,7 +122,7 @@ const Landing = () => {
                         transition={{ duration: 0.5, delay: 0.2 }}
                         className="text-xl md:text-2xl text-foreground/80 mb-12 max-w-3xl mx-auto text-balance font-medium drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
                     >
-                        A complete ecosystem combining real-time crop analysis, market insights, and predictive AI to maximize your yield and profit.
+                        A complete ecosystem combining real-time crop analysis, market demand analytics, and predictive AI to maximize your yield and profit.
                     </motion.p>
 
                     <motion.div
@@ -162,9 +162,9 @@ const Landing = () => {
                             delay={0.1}
                         />
                         <FeatureCard
-                            icon={TrendingUp}
-                            title="Market Insights"
-                            description="Real-time commodity pricing, demand forecasting, and yield predictions to sell at the best possible time."
+                            icon={ShoppingCart}
+                            title="Direct Marketplace & Orders"
+                            description="Connect directly with verified wholesale buyers, manage bulk contract requests, and track fulfillment seamlessly."
                             delay={0.2}
                         />
                         <FeatureCard

@@ -125,24 +125,6 @@ export const ROUTE_REGISTRY: RouteEntry[] = [
     suggestedActionsTe: ["అధిక డిమాండ్ ఉన్న పంటలు చూడండి", "ప్రాంతీయ సరఫరాను పోల్చండి"]
   },
   {
-    path: "/farmer/market-insights",
-    titleEn: "Market Insights & Prices",
-    titleTe: "మార్కెట్ ధరలు & అంచనాలు",
-    role: "farmer",
-    keywordsEn: [
-      "market insights", "prices", "crop prices", "market rates", "live prices",
-      "mandi prices", "sell crop", "price trend", "future prices"
-    ],
-    keywordsTe: [
-      "మార్కెట్ ధరలు", "పంట ధరలు", "లైవ్ ధరలు", "మండి ధరలు", "ధరల ట్రెండ్",
-      "అమ్మకపు వ్యూహం", "మార్కెట్ రేట్లు"
-    ],
-    descriptionEn: "Real-time crop prices, price forecasts, market trends, and AI recommendations on when to sell or store crops.",
-    descriptionTe: "నిజ-సమయ పంట ధరలు, ధరల అంచనా మరియు పంటను ఎప్పుడు అమ్మాలో సూచించే ఏఐ వ్యూహం.",
-    suggestedActionsEn: ["Check Rice live price", "Check Cotton rate", "View storage advice"],
-    suggestedActionsTe: ["వరి లైవ్ ధర చూడండి", "పత్తి రేటు చూడండి", "నిల్వ ఉంచే సలహా చూడండి"]
-  },
-  {
     path: "/farmer/regional-insights",
     titleEn: "Regional Insights",
     titleTe: "ప్రాంతీయ సమాచారం",

@@ -18,6 +18,8 @@ export interface MessageHistoryItem {
   time: string;
   type?: string;
   targetPath?: string;
+  cardType?: "orders_list" | "order_summary" | "bulk_progress" | "weather" | "price_list" | "schemes";
+  cardData?: any;
 }
 
 export interface VoiceAssistantContextType {
@@ -184,6 +186,8 @@ export const VoiceAssistantProvider: React.FC<{ children: React.ReactNode }> = (
           time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           type: resolved.type,
           targetPath: resolved.targetPath,
+          cardType: resolved.cardType,
+          cardData: resolved.cardData,
         };
 
         // Handle specific actions
@@ -201,10 +205,19 @@ export const VoiceAssistantProvider: React.FC<{ children: React.ReactNode }> = (
           if (resolved.targetPath && location.pathname !== resolved.targetPath) {
             navigate(resolved.targetPath);
           }
+        } else if (resolved.type === "initiate_status_update" && resolved.pendingAction) {
+          setPendingAction(resolved.pendingAction);
+          speechSynthesisService.speak(spokenText, language);
         } else if (resolved.type === "confirm_action" && pendingActionRef.current) {
           // Execute confirmed consequential action
-          const result = await actionRegistry.executeDroneBooking(pendingActionRef.current);
+          const action = pendingActionRef.current;
           setPendingAction(null);
+          let result;
+          if (action.actionType === "update_order_status") {
+            result = await actionRegistry.executeOrderStatusUpdate(action);
+          } else {
+            result = await actionRegistry.executeDroneBooking(action);
+          }
           const confirmText = language === "te" ? result.messageTe : result.messageEn;
           assistantItem.text = confirmText;
           setLastResponse(confirmText);
