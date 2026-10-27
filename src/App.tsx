@@ -88,8 +88,6 @@ const App = () => (
                   <Route path="/farmer/govt-schemes" element={<FarmerRoute><GovtSchemes /></FarmerRoute>} />
                   <Route path="/farmer/weather" element={<FarmerRoute><Weather /></FarmerRoute>} />
                   <Route path="/farmer/demand-supply" element={<FarmerRoute><DemandSupply /></FarmerRoute>} />
-                  <Route path="/farmer/market-insights" element={<Navigate to="/farmer/dashboard" replace />} />
-                  <Route path="/market-insights" element={<Navigate to="/farmer/dashboard" replace />} />
                   <Route path="/farmer/regional-insights" element={<FarmerRoute><RegionalInsights /></FarmerRoute>} />
                   <Route path="/farmer/irrigation" element={<FarmerRoute><Irrigation /></FarmerRoute>} />
                   <Route path="/farmer/fertilizer" element={<FarmerRoute><Fertilizer /></FarmerRoute>} />

@@ -32,6 +32,8 @@ interface MarketDemand {
   bulk_order_id: string;
   crop_name: string;
   total_quantity: number;
+  fulfilled_quantity?: number;
+  total_committed?: number;
   region: string;
   demand_status: string;
   created_at: string;
@@ -132,37 +134,66 @@ const DemandSupply = () => {
       }
       setBuyers(buyerList);
 
-      // Fetch Market Demands
+      // Fetch Market Demands and Farmer Commitments
       const { data: demandsData } = await supabase.from("bulk_orders").select("*");
+      const { data: commitmentsData } = await supabase.from("farmer_commitments").select("*");
+
       const bulkList = Array.isArray(demandsData) ? demandsData : [];
-      
-      const demandsFormatted: MarketDemand[] = bulkList.map((b: any) => ({
-        id: b.id || "demand-1",
-        bulk_order_id: b.id,
-        crop_name: b.crop_name || "Organic Rice",
-        total_quantity: b.quantity_required || 5000,
-        region: b.region || "Andhra Pradesh",
-        demand_status: "active",
-        created_at: b.created_at || new Date().toISOString(),
-        bulk_orders: {
-          unit: b.unit || "kg",
-          expected_delivery_start: b.expected_delivery_start || "2026-03-01",
-          expected_delivery_end: b.expected_delivery_end || "2026-03-15"
-        },
-        farmer_commitments: []
-      }));
+      const commitmentsList = Array.isArray(commitmentsData) ? commitmentsData : [];
+
+      const demandsFormatted: MarketDemand[] = bulkList.map((b: any) => {
+        const orderId = b.id || b.bulk_order_id || "bulk-901";
+        // Find existing commitments for this bulk demand
+        let relCommitments = commitmentsList.filter(
+          (c: any) => c.demand_id === orderId || c.bulk_order_id === orderId || (b.bulk_order_id && c.demand_id === b.bulk_order_id)
+        );
+
+        const totalReq = Number(b.quantity_required || b.total_quantity || 1000);
+        const baselineFulfilled = Number(b.total_committed ?? b.fulfilled_quantity ?? 0);
+
+        // If no explicit commitment rows exist but the order has fulfilled/committed quantity, seed a baseline commitment
+        if (relCommitments.length === 0 && baselineFulfilled > 0) {
+          relCommitments = [
+            {
+              id: `baseline-${orderId}`,
+              farmer_id: b.farmer_id || "farmer-demo-1",
+              committed_quantity: baselineFulfilled,
+            }
+          ];
+        }
+
+        return {
+          id: orderId,
+          bulk_order_id: orderId,
+          crop_name: b.crop_name || "Organic Produce",
+          total_quantity: totalReq,
+          fulfilled_quantity: baselineFulfilled,
+          total_committed: baselineFulfilled,
+          region: b.region || "Andhra Pradesh",
+          demand_status: b.status || "active",
+          created_at: b.created_at || new Date().toISOString(),
+          bulk_orders: {
+            unit: b.unit || "kg",
+            expected_delivery_start: b.expected_delivery_start || "2026-03-01",
+            expected_delivery_end: b.expected_delivery_end || "2026-03-15"
+          },
+          farmer_commitments: relCommitments
+        };
+      });
 
       if (demandsFormatted.length === 0) {
         demandsFormatted.push({
-          id: "demand-demo-1",
+          id: "bulk-901",
           bulk_order_id: "bulk-901",
           crop_name: "Organic Sona Masoori Rice",
-          total_quantity: 5000,
+          total_quantity: 1000,
+          fulfilled_quantity: 250,
+          total_committed: 250,
           region: "Andhra Pradesh",
-          demand_status: "active",
+          demand_status: "open",
           created_at: new Date().toISOString(),
           bulk_orders: { unit: "kg", expected_delivery_start: "2026-03-01", expected_delivery_end: "2026-03-15" },
-          farmer_commitments: [{ id: "c-1", farmer_id: "f-1", committed_quantity: 1500 }]
+          farmer_commitments: [{ id: "commit-init-1", farmer_id: "farmer-demo-1", committed_quantity: 250 }]
         });
       }
 
@@ -176,48 +207,123 @@ const DemandSupply = () => {
 
   useEffect(() => {
     fetchData();
+
+    // Listen for live database changes across bulk_orders and farmer_commitments
+    const handleDbChange = (e: any) => {
+      const detail = e.detail;
+      if (detail && (detail.table === "bulk_orders" || detail.table === "farmer_commitments" || detail.table === "orders")) {
+        fetchData();
+      }
+    };
+
+    window.addEventListener("supabase_db_change", handleDbChange);
+    return () => {
+      window.removeEventListener("supabase_db_change", handleDbChange);
+    };
   }, []);
 
+  const getTotalCommitted = (demand: MarketDemand) => {
+    const commitments = demand?.farmer_commitments || [];
+    const sum = commitments.reduce((acc, c) => acc + (Number(c.committed_quantity) || 0), 0);
+    if (sum > 0) return sum;
+    return Number(demand.fulfilled_quantity || demand.total_committed || 0);
+  };
+
+  const getPercentage = (demand: MarketDemand) => {
+    const total = Number(demand.total_quantity || 1);
+    const committed = getTotalCommitted(demand);
+    return Math.min(100, Math.max(0, Math.round((committed / total) * 100)));
+  };
+
   const handleCommit = async () => {
-    if (!user || !selectedDemand || !commitmentQuantity) return;
+    if (!user) {
+      toast.error("Please sign in as a farmer to commit to production");
+      return;
+    }
+    if (!selectedDemand || !commitmentQuantity) return;
 
     const quantity = parseFloat(commitmentQuantity);
     if (isNaN(quantity) || quantity <= 0) {
-      toast.error("Please enter a valid quantity");
+      toast.error("Please enter a valid positive quantity");
+      return;
+    }
+
+    const currentCommitted = getTotalCommitted(selectedDemand);
+    const remainingNeeded = Math.max(0, selectedDemand.total_quantity - currentCommitted);
+
+    if (quantity > remainingNeeded) {
+      toast.error(`Cannot commit more than remaining needed (${remainingNeeded} ${selectedDemand.bulk_orders?.unit || "kg"})`);
       return;
     }
 
     setCommitting(true);
 
-    const { error } = await supabase.from("farmer_commitments").insert({
-      farmer_id: user.id,
-      demand_id: selectedDemand.id,
-      committed_quantity: quantity,
-      status: "committed"
-    });
+    try {
+      const commitmentPayload = {
+        id: `commit-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+        farmer_id: user.id,
+        farmer_name: user.full_name || "Verified Farmer",
+        demand_id: selectedDemand.id,
+        bulk_order_id: selectedDemand.bulk_order_id || selectedDemand.id,
+        committed_quantity: quantity,
+        status: "committed",
+        created_at: new Date().toISOString()
+      };
 
-    if (error) {
-      toast.error("Failed to commit: " + error.message);
+      // 1. Insert into farmer_commitments
+      const { error: commitErr } = await supabase.from("farmer_commitments").insert(commitmentPayload);
+      if (commitErr) {
+        throw new Error(commitErr.message);
+      }
+
+      // 2. Cross-update bulk_orders progress metrics
+      const newTotalCommitted = currentCommitted + quantity;
+      const newRemaining = Math.max(0, selectedDemand.total_quantity - newTotalCommitted);
+      const newPct = Math.min(100, Math.round((newTotalCommitted / (selectedDemand.total_quantity || 1)) * 100));
+
+      await supabase.from("bulk_orders").update({
+        total_committed: newTotalCommitted,
+        fulfilled_quantity: newTotalCommitted,
+        remaining_quantity: newRemaining,
+        progress_pct: newPct,
+        status: newRemaining <= 0 ? "fulfilled" : "open"
+      }).eq("id", selectedDemand.bulk_order_id || selectedDemand.id);
+
+      // 3. Immediately update local state so UI updates with 0 latency
+      setMarketDemands((prev) =>
+        prev.map((d) => {
+          if (d.id === selectedDemand.id) {
+            const updatedCommitments = [
+              ...(d.farmer_commitments || []),
+              {
+                id: commitmentPayload.id,
+                farmer_id: user.id,
+                committed_quantity: quantity
+              }
+            ];
+            return {
+              ...d,
+              fulfilled_quantity: newTotalCommitted,
+              total_committed: newTotalCommitted,
+              farmer_commitments: updatedCommitments
+            };
+          }
+          return d;
+        })
+      );
+
+      toast.success(`Successfully committed ${quantity} ${selectedDemand.bulk_orders?.unit || "kg"}!`);
+      setSelectedDemand(null);
+      setCommitmentQuantity("");
+
+      // 4. Background re-fetch to confirm server persistence
+      fetchData();
+    } catch (err: any) {
+      console.error("Failed to commit:", err);
+      toast.error("Failed to commit: " + (err.message || "Unknown error"));
+    } finally {
       setCommitting(false);
-      return;
     }
-
-    toast.success("Production commitment registered successfully!");
-    setCommitting(false);
-    setSelectedDemand(null);
-    setCommitmentQuantity("");
-    fetchData();
-  };
-
-  const getPercentage = (demand: MarketDemand) => {
-    const commitments = demand?.farmer_commitments || [];
-    const committed = commitments.reduce((sum, c) => sum + (c.committed_quantity || 0), 0);
-    return Math.min(Math.round((committed / (demand.total_quantity || 1)) * 100), 100);
-  };
-
-  const getTotalCommitted = (demand: MarketDemand) => {
-    const commitments = demand?.farmer_commitments || [];
-    return commitments.reduce((sum, c) => sum + (c.committed_quantity || 0), 0);
   };
 
   return (
@@ -303,7 +409,7 @@ const DemandSupply = () => {
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-[11px] font-medium">
                       <span>{getPercentage(demand)}% Fulfilled</span>
-                      <span className="text-muted-foreground">Needed: {demand.total_quantity - getTotalCommitted(demand)} {demand.bulk_orders?.unit || "kg"}</span>
+                      <span className="text-muted-foreground">Needed: {Math.max(0, demand.total_quantity - getTotalCommitted(demand))} {demand.bulk_orders?.unit || "kg"}</span>
                     </div>
                     <Progress value={getPercentage(demand)} className="h-1.5" />
                   </div>
@@ -425,7 +531,7 @@ const DemandSupply = () => {
                     value={commitmentQuantity}
                     onChange={(e) => setCommitmentQuantity(e.target.value)}
                   />
-                  <p className="text-[10px] text-muted-foreground italic">Remaining needed: {selectedDemand.total_quantity - getTotalCommitted(selectedDemand)} {selectedDemand.bulk_orders?.unit || "kg"}</p>
+                  <p className="text-[10px] text-muted-foreground italic">Remaining needed: {Math.max(0, selectedDemand.total_quantity - getTotalCommitted(selectedDemand))} {selectedDemand.bulk_orders?.unit || "kg"}</p>
                 </div>
               </div>
             </div>

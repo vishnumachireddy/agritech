@@ -369,6 +369,19 @@ IN_MEMORY_TABLES["bulk_orders"] = [
     }
 ]
 
+IN_MEMORY_TABLES["farmer_commitments"] = [
+    {
+        "id": "commit-init-1",
+        "demand_id": "bulk-901",
+        "bulk_order_id": "bulk-901",
+        "farmer_id": "farmer-demo-1",
+        "farmer_name": "Ramesh Kumar",
+        "committed_quantity": 250,
+        "status": "committed",
+        "created_at": datetime.utcnow().isoformat()
+    }
+]
+
 IN_MEMORY_TABLES["crops"] = [
     {
         "id": "crop-101",
@@ -799,6 +812,46 @@ async def create_record(table: str, request: Request):
             await manager.broadcast("orders", "INSERT", order_record)
         except Exception:
             pass
+
+    elif table == "farmer_commitments":
+        # Synchronize commitment with corresponding bulk order
+        target_demand_id = data.get("demand_id") or data.get("bulk_order_id")
+        committed_qty = float(data.get("committed_quantity", data.get("quantity", 0)))
+        if target_demand_id and committed_qty > 0:
+            for bo in IN_MEMORY_TABLES.get("bulk_orders", []):
+                if str(bo.get("id")) == str(target_demand_id) or str(bo.get("bulk_order_id")) == str(target_demand_id):
+                    current_committed = float(bo.get("total_committed", bo.get("fulfilled_quantity", 0)))
+                    new_committed = current_committed + committed_qty
+                    req_qty = float(bo.get("quantity_required", 100))
+                    bo["total_committed"] = new_committed
+                    bo["fulfilled_quantity"] = new_committed
+                    bo["remaining_quantity"] = max(0.0, req_qty - new_committed)
+                    bo["progress_pct"] = round((new_committed / req_qty) * 100, 1) if req_qty > 0 else 0.0
+                    if bo["remaining_quantity"] <= 0:
+                        bo["status"] = "fulfilled"
+                    elif bo.get("status") == "open":
+                        bo["status"] = "in_progress"
+
+                    if is_mongo_online:
+                        try:
+                            await db.get_collection("bulk_orders").update_one(
+                                {"id": bo["id"]},
+                                {"$set": {
+                                    "total_committed": bo["total_committed"],
+                                    "fulfilled_quantity": bo["fulfilled_quantity"],
+                                    "remaining_quantity": bo["remaining_quantity"],
+                                    "progress_pct": bo["progress_pct"],
+                                    "status": bo["status"]
+                                }},
+                                upsert=True
+                            )
+                        except Exception:
+                            pass
+                    try:
+                        await manager.broadcast("bulk_orders", "UPDATE", bo)
+                    except Exception:
+                        pass
+                    break
 
     try:
         await manager.broadcast(table, "INSERT", record_copy)

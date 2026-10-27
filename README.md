@@ -7,7 +7,7 @@
 [![Groq AI](https://img.shields.io/badge/Groq%20AI-LPU%20Inference-F05A28?style=flat)](https://groq.com/)
 [![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.4+-38B2AC?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
-AgriAssist is a full-stack, enterprise-grade precision agricultural platform that bridges the gap between **Farmers** and **Consumers/Service Operators**. It integrates high-speed AI inference (Groq LPUs), machine learning crop advisories, real-time APMC mandi market intelligence, interactive leaf pathology diagnostics, and an end-to-end autonomous drone spray dispatch lifecycle.
+AgriAssist is a full-stack, enterprise-grade precision agricultural platform that bridges the gap between **Farmers** and **Consumers/Service Operators**. It integrates high-speed AI inference (Groq LPUs), machine learning crop advisories, interactive leaf pathology diagnostics, and an end-to-end autonomous drone spray dispatch lifecycle.
 
 ---
 
@@ -41,7 +41,6 @@ smart-farming-rgm-main/
 │   │   ├── CropGuidance.tsx           # Multi-Model Crop Recommendation & Profit Engine
 │   │   ├── DroneBooking.tsx           # Farmer Drone & Heavy Pump Spray Booking
 │   │   ├── Irrigation.tsx             # Smart Irrigation & Water Conservation Plans
-│   │   ├── MarketInsights.tsx         # Real-time Mandi Prices & Future Projections
 │   │   ├── RegionalInsights.tsx       # State & District Peer Benchmarks & Yields
 │   │   ├── GovtSchemes.tsx            # Subsidies & Central/State Schemes Directory
 │   │   ├── Fertilizer.tsx             # Conversational AI Soil & Fertilizer Bot
@@ -61,10 +60,8 @@ smart-farming-rgm-main/
 ├── crop_guidance_ai/                  # Python FastAPI Backend Engine
 │   ├── main.py                        # Core ASGI Application & Guidance Endpoints
 │   ├── edge_routes.py                 # Groq AI Vision, Fertilizer Bot & Weather API
-│   ├── market_engine.py               # Mandi Scraping, Forecasts & SQLite Database
 │   ├── spray_routes.py                # Drone & Spray Providers & Booking Lifecycle
 │   ├── api_routes.py                  # Tables, Orders, Schemes & RPC Endpoints
-│   ├── market_intel.db                # SQLite High-Availability Data Storage
 │   └── requirements.txt               # Python Dependencies
 ```
 

@@ -12,4 +12,3 @@ export const WS_BACKEND_URL = import.meta.env.VITE_WS_URL
 
 export const API_BASE = `${BACKEND_URL}/api`;
 export const WS_DB_EVENTS = `${WS_BACKEND_URL}/ws/db-events`;
-export const WS_MARKET_STREAM = `${WS_BACKEND_URL}/ws/market-stream`;
