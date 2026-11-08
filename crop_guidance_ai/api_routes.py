@@ -1,14 +1,76 @@
 from fastapi import APIRouter, HTTPException, Depends, Header, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from collections import defaultdict
 import uuid
 import json
+import time
+import logging
 from auth import verify_password, get_password_hash, create_access_token, decode_access_token
 from database import db, profiles_collection, crops_collection, orders_collection, is_mongo_online, mark_mongo_offline
+from cache_service import cache_service
+
+logger = logging.getLogger("agrosmart.api")
 
 router = APIRouter()
+
+# --- Security & Table Configuration ---
+ALLOWED_TABLES = {
+    "profiles", "crops", "orders", "bulk_orders", "bulk_requests",
+    "drone_bookings", "market_prices", "government_schemes", "notifications",
+    "farmer_commitments", "farmer_details", "delivery_tracking", "market_trends",
+    "historical_prices", "demand_supply_index", "crop_traceability", "spray_providers"
+}
+
+# Tables that are safe for public reading and can be cached
+CACHABLE_TABLES = {
+    "government_schemes": 86400,     # 24h
+    "market_prices": 3600,           # 1h
+    "spray_providers": 3600,         # 1h
+    "market_trends": 1800,           # 30m
+    "historical_prices": 7200,       # 2h
+    "demand_supply_index": 1800      # 30m
+}
+
+# --- Shared In-Memory & Redis Rate Limiter ---
+class RateLimiter:
+    def __init__(self):
+        self.requests: Dict[str, List[float]] = defaultdict(list)
+
+    async def is_allowed(self, client_ip: str, action: str, max_requests: int, window_seconds: int) -> bool:
+        if cache_service.is_connected and cache_service.redis_client:
+            try:
+                key = f"rate:{action}:{client_ip}"
+                current = await cache_service.redis_client.incr(key)
+                if current == 1:
+                    await cache_service.redis_client.expire(key, window_seconds)
+                return current <= max_requests
+            except Exception:
+                pass
+        now = time.time()
+        key = f"{action}:{client_ip}"
+        timestamps = self.requests[key]
+        self.requests[key] = [t for t in timestamps if now - t < window_seconds]
+        if len(self.requests[key]) >= max_requests:
+            return False
+        self.requests[key].append(now)
+        return True
+
+rate_limiter = RateLimiter()
+
+# --- Auth Helpers ---
+def extract_token_user(authorization: Optional[str] = Header(None)) -> Optional[dict]:
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token = authorization.split(" ")[1]
+    return decode_access_token(token)
+
+def require_token_user(authorization: Optional[str] = Header(None)) -> dict:
+    user = extract_token_user(authorization)
+    if not user or "sub" not in user:
+        raise HTTPException(status_code=401, detail="Authentication required. Please log in.")
+    return user
 
 # --- Realtime WebSocket Connection Manager ---
 class ConnectionManager:
@@ -382,6 +444,19 @@ IN_MEMORY_TABLES["farmer_commitments"] = [
     }
 ]
 
+IN_MEMORY_TABLES["notifications"] = [
+    {
+        "id": "notif-init-1",
+        "user_id": "farmer-demo-1",
+        "title": "Weather Shield Active",
+        "message": "Automated sudden weather change detection and registered email alerts are enabled.",
+        "type": "weather_alert",
+        "severity": "info",
+        "read": False,
+        "created_at": datetime.utcnow().isoformat()
+    }
+]
+
 IN_MEMORY_TABLES["crops"] = [
     {
         "id": "crop-101",
@@ -647,8 +722,26 @@ async def get_tables_alias(table: str, request: Request):
 
 @router.get("/api/{table}")
 async def get_records(table: str, request: Request):
+    if table not in ALLOWED_TABLES:
+        raise HTTPException(status_code=400, detail=f"Access to collection '{table}' is not permitted.")
+
     query_params = dict(request.query_params)
+
+    # 1. Check cache for public read collections
+    cache_key = None
+    if table in CACHABLE_TABLES:
+        param_str = "_".join(f"{k}:{v}" for k, v in sorted(query_params.items())) or "all"
+        cache_key = f"{table}:{param_str}"
+        cached = await cache_service.get(table, cache_key)
+        if cached is not None:
+            return cached
+
     results = []
+    projection = {"_id": 0}
+    if table == "profiles":
+        # Never leak passwords through profiles API!
+        projection["password"] = 0
+
     if is_mongo_online:
         try:
             collection = db.get_collection(table)
@@ -662,7 +755,7 @@ async def get_records(table: str, request: Request):
                     else:
                         filter_query[k] = v
 
-            cursor = collection.find(filter_query, {"_id": 0})
+            cursor = collection.find(filter_query, projection)
             
             if "order" in query_params:
                 cursor = cursor.sort(query_params["order"], -1)
@@ -694,9 +787,14 @@ async def get_records(table: str, request: Request):
                         match = False
                         break
             if match:
-                clean_r = {k: v for k, v in r.items() if k != "_id"}
+                clean_r = {k: v for k, v in r.items() if k not in ("_id", "password")}
                 filtered.append(clean_r)
-        return filtered
+        results = filtered
+
+    # Cache result if table is cachable
+    if cache_key and results:
+        ttl = CACHABLE_TABLES.get(table, 300)
+        await cache_service.set(table, cache_key, results, ttl_seconds=ttl)
 
     return results
 
@@ -704,6 +802,11 @@ ALLOWED_ORDER_STATUSES = {"pending", "accepted", "packed", "out_for_delivery", "
 
 @router.post("/api/{table}")
 async def create_record(table: str, request: Request):
+    if table not in ALLOWED_TABLES:
+        raise HTTPException(status_code=400, detail=f"Access to collection '{table}' is not permitted.")
+    if table == "profiles":
+        raise HTTPException(status_code=403, detail="Direct creation of user profiles is not permitted. Use /api/auth/register.")
+
     data = await request.json()
     if not isinstance(data, dict):
         data = {}
@@ -858,15 +961,32 @@ async def create_record(table: str, request: Request):
     except Exception:
         pass
 
+    try:
+        await cache_service.delete_namespace(table)
+    except Exception:
+        pass
+
     return record_copy
 
 @router.put("/api/{table}")
 async def update_record(table: str, request: Request):
+    if table not in ALLOWED_TABLES:
+        raise HTTPException(status_code=400, detail=f"Access to collection '{table}' is not permitted.")
+
     query_params = dict(request.query_params)
     data = await request.json()
     
     if not isinstance(data, dict):
         raise HTTPException(status_code=400, detail="Invalid JSON update payload")
+
+    # IDOR Check for user profiles
+    if table == "profiles":
+        auth_user = extract_token_user(request.headers.get("Authorization"))
+        target_id = query_params.get("id")
+        if not auth_user:
+            raise HTTPException(status_code=401, detail="Authentication required to modify profiles.")
+        if target_id and auth_user.get("sub") != target_id:
+            raise HTTPException(status_code=403, detail="Unauthorized: Cannot modify another user's profile.")
 
     # 1. Status Validation for Orders
     if table == "orders" and "status" in data:
@@ -1065,6 +1185,11 @@ async def update_record(table: str, request: Request):
 
 @router.delete("/api/{table}")
 async def delete_record(table: str, request: Request):
+    if table not in ALLOWED_TABLES:
+        raise HTTPException(status_code=400, detail=f"Access to collection '{table}' is not permitted.")
+    if table == "profiles":
+        raise HTTPException(status_code=403, detail="Direct deletion of user profiles is prohibited.")
+
     query_params = dict(request.query_params)
     if query_params:
         try:
@@ -1080,6 +1205,11 @@ async def delete_record(table: str, request: Request):
 
         try:
             await manager.broadcast(table, "DELETE", query_params)
+        except Exception:
+            pass
+
+        try:
+            await cache_service.delete_namespace(table)
         except Exception:
             pass
 

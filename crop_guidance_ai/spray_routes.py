@@ -5,6 +5,7 @@ from datetime import datetime
 import uuid
 from database import db, spray_providers_collection, drone_bookings_collection
 from api_routes import manager
+from cache_service import cache_service
 
 spray_router = APIRouter()
 
@@ -66,6 +67,11 @@ DEFAULT_PROVIDERS = [
 
 @spray_router.get("/api/spray-providers")
 async def get_spray_providers(service_type: Optional[str] = None, region: Optional[str] = None):
+    cache_key = f"providers:{service_type}:{region}"
+    cached = await cache_service.get("spray_providers", cache_key)
+    if cached is not None:
+        return cached
+
     query = {"is_available": True}
     if service_type and service_type != "all":
         query["$or"] = [{"service_type": service_type}, {"service_type": "Both"}]
@@ -82,6 +88,10 @@ async def get_spray_providers(service_type: Optional[str] = None, region: Option
     # Fallback default providers if database empty or offline
     if not providers:
         providers = DEFAULT_PROVIDERS
+
+    if providers:
+        await cache_service.set("spray_providers", cache_key, providers, ttl_seconds=3600)
+
     return providers
 
 # In-memory runtime cache for fallback support when DB connection times out
@@ -168,6 +178,10 @@ async def create_spray_booking(req: CreateBookingRequest):
 
     # Broadcast WebSocket event live
     await manager.broadcast("drone_bookings", "INSERT")
+    try:
+        await cache_service.delete_namespace("drone_bookings")
+    except Exception:
+        pass
 
     return booking_doc
 
@@ -254,5 +268,9 @@ async def update_booking_status(booking_id: str, req: UpdateStatusRequest):
 
     # Broadcast WebSocket update event live
     await manager.broadcast("drone_bookings", "UPDATE")
+    try:
+        await cache_service.delete_namespace("drone_bookings")
+    except Exception:
+        pass
 
     return existing

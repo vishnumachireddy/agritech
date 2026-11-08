@@ -23,13 +23,14 @@ dist-ssr
 *.sln
 *.sw?
 
-# AI Backend
+# Python
+__pycache__/
+*.pyc
 crop_guidance_ai/venv/
 crop_guidance_ai/.env
-crop_guidance_ai/__pycache__/
 crop_guidance_ai/*.db
 !crop_guidance_ai/market_intel.db
-crop_guidance_ai/*.pyc
+
 
 # Environment 
 .env
@@ -38,4 +39,8 @@ crop_guidance_ai/*.pyc
 .env.test.local
 .env.production.local
 supabase/functions/.env
+
+# Load testing & benchmarks
+crop_guidance_ai/locust_*.csv
+
 

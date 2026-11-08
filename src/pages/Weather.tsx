@@ -15,7 +15,11 @@ import {
   RefreshCw,
   Search,
   CheckCircle2,
-  Compass
+  Compass,
+  Mail,
+  Bell,
+  Send,
+  ShieldAlert
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -105,6 +109,89 @@ const Weather = () => {
   const [selectedRegion, setSelectedRegion] = useState("Andhra Pradesh");
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
+  // Weather alert email states
+  const [sendingAlert, setSendingAlert] = useState(false);
+  const [recentAlerts, setRecentAlerts] = useState<
+    { title: string; severity: string; email: string; time: string; advisory: string }[]
+  >([]);
+
+  const registeredEmail = user?.email || localStorage.getItem("user_email") || "farmer@agri.com";
+
+  const handleTriggerAlert = async (alertOpts: {
+    title: string;
+    type: string;
+    severity: string;
+    condition: string;
+    temp?: number;
+    wind?: number;
+    rain?: number;
+    advisory: string;
+    isAuto?: boolean;
+  }) => {
+    if (sendingAlert) return;
+    setSendingAlert(true);
+
+    try {
+      const locStr =
+        weather?.location.village ||
+        weather?.location.mandal ||
+        weather?.location.district ||
+        weather?.location.name ||
+        "Detected Farm Location";
+
+      const payload = {
+        email: registeredEmail,
+        user_id: user?.id || "farmer-demo-1",
+        farmer_name: user?.full_name || "Verified Farmer",
+        location_name: locStr,
+        alert_title: alertOpts.title,
+        alert_type: alertOpts.type,
+        severity: alertOpts.severity,
+        current_temp: alertOpts.temp ?? weather?.current.temperature ?? 32.0,
+        wind_speed: alertOpts.wind ?? weather?.current.wind_speed ?? 20.0,
+        precipitation: alertOpts.rain ?? weather?.forecast[0]?.precipitation ?? 10.0,
+        condition: alertOpts.condition,
+        advisory: alertOpts.advisory,
+      };
+
+      const res = await fetch(`${API_BASE}/weather/alert-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const newRecord = {
+          title: alertOpts.title,
+          severity: alertOpts.severity,
+          email: registeredEmail,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          advisory: alertOpts.advisory,
+        };
+        setRecentAlerts((prev) => [newRecord, ...prev.slice(0, 3)]);
+
+        // Broadcast change so NotificationDropdown refreshes in the top bar
+        window.dispatchEvent(
+          new CustomEvent("supabase_db_change", {
+            detail: { table: "notifications", event: "INSERT", data: data.notification },
+          })
+        );
+
+        toast.warning(`🚨 ${alertOpts.title}!`, {
+          description: `Dispatched email alert to ${registeredEmail} and updated in-app notifications.`,
+        });
+      } else {
+        throw new Error(`Failed to send alert email: ${res.status}`);
+      }
+    } catch (err: any) {
+      console.error("Alert email error:", err);
+      toast.error("Failed to send weather alert email: " + (err.message || "Unknown error"));
+    } finally {
+      setSendingAlert(false);
+    }
+  };
+
   /**
    * Fetch weather using coordinates or regional query
    */
@@ -133,6 +220,47 @@ const Weather = () => {
             : new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
           setLastUpdated(updateTime);
           setLoading(false);
+
+          // Automated sudden weather change check
+          const hasHeavyPrecip = data.forecast?.some((d) => d.precipitation > 10) || data.current.weather_code >= 80;
+          const hasSevereWind = data.current.wind_speed > 35;
+          const hasExtremeHeat = data.current.temperature > 38;
+          const hasSuddenFrost = data.current.temperature < 10;
+
+          if (hasHeavyPrecip || hasSevereWind || hasExtremeHeat || hasSuddenFrost) {
+            const lastAuto = sessionStorage.getItem("last_weather_alert_time");
+            const now = Date.now();
+            if (!lastAuto || now - Number(lastAuto) > 15 * 60 * 1000) {
+              sessionStorage.setItem("last_weather_alert_time", String(now));
+              const title = hasHeavyPrecip
+                ? "Sudden Heavy Downpour & Rain Alert"
+                : hasSevereWind
+                ? "High Wind & Spray Hazard Warning"
+                : hasExtremeHeat
+                ? "Extreme Heatwave & Crop Stress Alert"
+                : "Sudden Cold & Frost Warning";
+              const advisory = hasHeavyPrecip
+                ? "Heavy rain detected near your farm coordinates. Open field drainage trenches and suspend pesticide spraying."
+                : hasSevereWind
+                ? "Gale-force winds exceed 35 km/h. Halt drone and tractor spraying to prevent chemical drift."
+                : hasExtremeHeat
+                ? "Thermal stress exceeds 38°C. Schedule drip irrigation during morning or evening."
+                : "Freezing temperature risk. Shield delicate nursery plants.";
+
+              handleTriggerAlert({
+                title,
+                type: hasHeavyPrecip ? "heavy_rain" : hasSevereWind ? "high_wind" : "heatwave",
+                severity: "CRITICAL",
+                condition: data.current.condition || "Severe Weather Change",
+                temp: data.current.temperature,
+                wind: data.current.wind_speed,
+                rain: data.forecast[0]?.precipitation || 12.0,
+                advisory,
+                isAuto: true,
+              });
+            }
+          }
+
           return data;
         } else {
           throw new Error(`Backend returned status ${res.status}`);
@@ -586,6 +714,168 @@ const Weather = () => {
                   </div>
                 )}
             </div>
+          </div>
+
+          {/* Sudden Weather Change Alerts & Registered Mail Defense */}
+          <div className="bg-card rounded-xl p-6 card-shadow border border-border space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                    Sudden Weather Change Alerts & Registered Email Defense
+                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1" /> Active
+                    </Badge>
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Automatically triggers in-app notifications and sends instant alerts to your registered email when severe weather conditions occur.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 py-1.5 px-3 rounded-lg border border-border/40">
+                <Mail className="w-3.5 h-3.5 text-primary" />
+                <span>Alerts Sent To:</span>
+                <strong className="text-foreground">{registeredEmail}</strong>
+              </div>
+            </div>
+
+            {/* Threshold Indicators */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/15">
+                <p className="text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1">
+                  💧 Heavy Downpour
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">&gt; 10 mm rainfall</p>
+              </div>
+              <div className="p-3 rounded-lg bg-rose-500/5 border border-rose-500/15">
+                <p className="text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
+                  💨 Gale / High Winds
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">&gt; 35 km/h gusts</p>
+              </div>
+              <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/15">
+                <p className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                  🌡️ Thermal Stress
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">&gt; 38°C or &lt; 10°C</p>
+              </div>
+              <div className="p-3 rounded-lg bg-purple-500/5 border border-purple-500/15">
+                <p className="text-purple-600 dark:text-purple-400 font-semibold flex items-center gap-1">
+                  ⛈️ Storm & Lightning
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Meteo Code 80+ / 95+</p>
+              </div>
+            </div>
+
+            {/* Interactive Dispatch Buttons */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button
+                size="sm"
+                variant="default"
+                disabled={sendingAlert}
+                onClick={() =>
+                  handleTriggerAlert({
+                    title: "Sudden Severe Weather Alert",
+                    type: "severe_storm",
+                    severity: "CRITICAL",
+                    condition: "Sudden Thunderstorm & Heavy Precipitation",
+                    temp: weather.current.temperature,
+                    wind: Math.max(38.0, weather.current.wind_speed),
+                    rain: 18.5,
+                    advisory:
+                      "Sudden thunderstorm cloudburst detected near your field. Open drainage trenches immediately, secure nursery covers, and postpone drone spraying.",
+                  })
+                }
+                className="text-xs h-8 gap-1.5 bg-red-600 hover:bg-red-700 text-white"
+              >
+                {sendingAlert ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                Send Sudden Weather Alert to Registered Email
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={sendingAlert}
+                onClick={() =>
+                  handleTriggerAlert({
+                    title: "Sudden Heavy Rain & Waterlogging Advisory",
+                    type: "heavy_rain",
+                    severity: "WARNING",
+                    condition: "Heavy Rain (14.2 mm/hr)",
+                    temp: weather.current.temperature,
+                    wind: weather.current.wind_speed,
+                    rain: 14.2,
+                    advisory:
+                      "Torrential rain detected across your mandal. Check bunds and drainage outlets to avoid root suffocation.",
+                  })
+                }
+                className="text-xs h-8 gap-1 border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+              >
+                💧 Test Heavy Downpour Alert
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={sendingAlert}
+                onClick={() =>
+                  handleTriggerAlert({
+                    title: "High Wind & Spray Hazard Advisory",
+                    type: "high_wind",
+                    severity: "WARNING",
+                    condition: "Strong Gale Winds (42.0 km/h)",
+                    temp: weather.current.temperature,
+                    wind: 42.0,
+                    rain: 0.0,
+                    advisory:
+                      "Gale-force wind gusts exceeding 40 km/h detected. Halt all aerial and ground spraying immediately to prevent chemical drift.",
+                  })
+                }
+                className="text-xs h-8 gap-1 border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10"
+              >
+                💨 Test Gale Wind Alert
+              </Button>
+            </div>
+
+            {/* Recent Alerts Log */}
+            {recentAlerts.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-border/50">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Bell className="w-3.5 h-3.5 text-primary" /> Dispatched Weather Alerts History
+                </p>
+                <div className="space-y-2">
+                  {recentAlerts.map((alt, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-lg bg-muted/40 border border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                              alt.severity === "CRITICAL"
+                                ? "bg-red-500/20 text-red-600"
+                                : "bg-amber-500/20 text-amber-600"
+                            }`}
+                          >
+                            {alt.severity}
+                          </span>
+                          <strong className="text-foreground">{alt.title}</strong>
+                        </div>
+                        <p className="text-muted-foreground mt-0.5">{alt.advisory}</p>
+                      </div>
+                      <div className="text-right sm:shrink-0 text-[11px] text-muted-foreground">
+                        <p className="font-medium text-foreground">Dispatched to: {alt.email}</p>
+                        <p>{alt.time}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </>
       ) : null}

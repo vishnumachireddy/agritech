@@ -1,14 +1,30 @@
 import httpx
+import asyncio
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 import os
 from groq import Groq
 from typing import Optional
 import datetime
+import uuid
+from email_service import send_weather_alert_email
+from cache_service import cache_service
 
 weather_router = APIRouter()
 
-WEATHER_API_KEY = os.getenv("WEATHER_API_KEY", "c2520c02b4a606631e800dd742bab498")
+# Limit concurrent AI calls to protect upstream Groq API and worker thread pool
+GROQ_SEMAPHORE = asyncio.Semaphore(10)
+
+from dotenv import load_dotenv
+
+# Load backend environment variables
+backend_env = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(backend_env):
+    load_dotenv(backend_env)
+else:
+    load_dotenv()
+
+WEATHER_API_KEY = os.getenv("WEATHER_API_KEY", "")
 
 def owm_to_meteo_code(id: int):
     if 200 <= id < 300: return 95
@@ -32,6 +48,12 @@ async def reverse_geocode(lat: float, lon: float) -> dict:
     village/city, mandal/taluk, district, and state.
     Strictly reports only verified details without fabricating nonexistent mandals or villages.
     """
+    geo_key = f"{round(lat, 3)}_{round(lon, 3)}"
+    cached = await cache_service.get("geocode", geo_key)
+    if cached is not None:
+        return cached
+
+    result = None
     # 1. OpenStreetMap Nominatim with agricultural User-Agent
     try:
         async with httpx.AsyncClient(timeout=4.0) as client:
@@ -118,6 +140,12 @@ async def get_weather(req: WeatherRequest):
     has_coords = req.lat is not None and req.lon is not None
     now_iso = datetime.datetime.utcnow().isoformat()
     
+    # 1. Check Redis Cache for Weather Response
+    weather_key = f"{round(req.lat, 2)}_{round(req.lon, 2)}" if has_coords else region_query.lower().replace(" ", "_")
+    cached_weather = await cache_service.get("weather", weather_key)
+    if cached_weather is not None:
+        return cached_weather
+
     geo_info = {}
     if has_coords:
         geo_info = await reverse_geocode(req.lat, req.lon)
@@ -198,6 +226,8 @@ async def get_weather(req: WeatherRequest):
                     },
                     "forecast": forecast,
                 }
+                await cache_service.set("weather", weather_key, weather_payload, ttl_seconds=600)
+                return weather_payload
     except Exception as e:
         print(f"OpenWeather fetch exception: {e}")
 
@@ -221,7 +251,7 @@ async def get_weather(req: WeatherRequest):
         })
 
     loc_name = geo_info.get("formatted_location") or region_query
-    return {
+    fallback_payload = {
         "location": {
             "name": loc_name,
             "formatted_location": loc_name,
@@ -247,6 +277,78 @@ async def get_weather(req: WeatherRequest):
         },
         "forecast": fallback_forecast,
     }
+    await cache_service.set("weather", weather_key, fallback_payload, ttl_seconds=120)
+    return fallback_payload
+
+class WeatherAlertEmailRequest(BaseModel):
+    email: str
+    user_id: Optional[str] = "farmer-demo-1"
+    farmer_name: Optional[str] = "Verified Farmer"
+    location_name: Optional[str] = "Your Farm Location"
+    alert_title: Optional[str] = "Sudden Weather Change Detected"
+    alert_type: Optional[str] = "severe_weather"
+    severity: Optional[str] = "WARNING"
+    current_temp: Optional[float] = 32.0
+    wind_speed: Optional[float] = 20.0
+    precipitation: Optional[float] = 10.0
+    condition: Optional[str] = "Storm Warning"
+    advisory: Optional[str] = "Heavy precipitation and gusty winds detected. Ensure field drainage channels are open and suspend spraying."
+
+@weather_router.post("/api/weather/alert-email")
+async def trigger_weather_alert_email(req: WeatherAlertEmailRequest):
+    if not req.email or "@" not in req.email:
+        raise HTTPException(status_code=400, detail="Valid recipient email address is required")
+
+    # 1. Dispatch Email (via Resend, SMTP, or Resilient Simulated Log)
+    email_result = await send_weather_alert_email(
+        to_email=req.email,
+        farmer_name=req.farmer_name or "Verified Farmer",
+        location_name=req.location_name or "Your Farm Location",
+        alert_title=req.alert_title or "Sudden Weather Change Detected",
+        alert_type=req.alert_type or "severe_weather",
+        severity=req.severity or "WARNING",
+        current_temp=req.current_temp or 32.0,
+        wind_speed=req.wind_speed or 20.0,
+        precipitation=req.precipitation or 10.0,
+        condition=req.condition or "Storm Warning",
+        advisory=req.advisory or "Take immediate preventive steps for crop protection."
+    )
+
+    # 2. Persist notification in database & in-memory for user_id
+    notif_id = f"notif-{uuid.uuid4().hex[:8]}"
+    notif_data = {
+        "id": notif_id,
+        "user_id": req.user_id,
+        "title": req.alert_title,
+        "message": f"[{req.severity}] {req.condition} at {req.location_name}. {req.advisory}",
+        "type": "weather_alert",
+        "severity": req.severity.lower() if req.severity else "warning",
+        "read": False,
+        "email_sent_to": req.email,
+        "created_at": datetime.datetime.utcnow().isoformat()
+    }
+
+    try:
+        from database import notifications_collection, is_mongo_online
+        if is_mongo_online:
+            await notifications_collection.insert_one(dict(notif_data))
+    except Exception as e:
+        print(f"MongoDB notification insert exception: {e}")
+
+    try:
+        from api_routes import IN_MEMORY_TABLES, manager
+        if "notifications" not in IN_MEMORY_TABLES:
+            IN_MEMORY_TABLES["notifications"] = []
+        IN_MEMORY_TABLES["notifications"].insert(0, dict(notif_data))
+        await manager.broadcast("notifications", "INSERT", notif_data)
+    except Exception as e:
+        print(f"Memory notification sync exception: {e}")
+
+    return {
+        "status": "success",
+        "notification": notif_data,
+        "email_dispatch": email_result
+    }
 
 class FertilizerChatRequest(BaseModel):
     message: str
@@ -259,21 +361,24 @@ async def fertilizer_chat(req: FertilizerChatRequest):
     client = Groq(api_key=groq_api)
     
     candidate_models = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"]
-    for model_name in candidate_models:
-        try:
-            resp = client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": "You are an expert agricultural advisor specializing in fertilizers, soil health, and crop nutrition for Indian farmers. Keep responses clear, helpful, and under 150 words."},
-                    {"role": "user", "content": req.message}
-                ],
-                model=model_name,
-                max_tokens=512
-            )
-            answer = resp.choices[0].message.content or ""
-            if answer.strip():
-                return {"reply": answer}
-        except Exception as e:
-            print(f"Fertilizer chat exception with {model_name}: {e}")
+    async with GROQ_SEMAPHORE:
+        for model_name in candidate_models:
+            try:
+                def do_chat():
+                    return client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": "You are an expert agricultural advisor specializing in fertilizers, soil health, and crop nutrition for Indian farmers. Keep responses clear, helpful, and under 150 words."},
+                            {"role": "user", "content": req.message}
+                        ],
+                        model=model_name,
+                        max_tokens=512
+                    )
+                resp = await asyncio.to_thread(do_chat)
+                answer = resp.choices[0].message.content or ""
+                if answer.strip():
+                    return {"reply": answer}
+            except Exception as e:
+                print(f"Fertilizer chat exception with {model_name}: {e}")
             
     return {"reply": "For balanced crop nutrition, apply NPK in a 4:2:1 ratio. Combine Urea with bio-fertilizers like Azospirillum and organic farmyard manure for best soil health."}
 
@@ -311,67 +416,72 @@ async def crop_disease_scan(req: CropDiseaseRequest):
         f"}}"
     )
     
-    # 1. Attempt vision query if supported
-    try:
-        resp = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt_text},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
-                    ]
-                }
-            ],
-            model="qwen/qwen3.8-27b",
-            max_tokens=450,
-            response_format={"type": "json_object"}
-        )
-        import json
-        data = json.loads(resp.choices[0].message.content)
-        if isinstance(data.get("treatment"), list):
-            data["treatment"] = " ".join(data["treatment"])
-        if isinstance(data.get("prevention"), list):
-            data["prevention"] = " ".join(data["prevention"])
-        if isinstance(data.get("confidence"), float) and data["confidence"] <= 1.0:
-            data["confidence"] = int(data["confidence"] * 100)
-        return data
-    except Exception as e:
-        print(f"Vision API exception: {e}")
+    async with GROQ_SEMAPHORE:
+        # 1. Attempt vision query if supported
+        try:
+            def do_vision():
+                return client.chat.completions.create(
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt_text},
+                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
+                            ]
+                        }
+                    ],
+                    model="qwen/qwen3.8-27b",
+                    max_tokens=450,
+                    response_format={"type": "json_object"}
+                )
+            resp = await asyncio.to_thread(do_vision)
+            import json
+            data = json.loads(resp.choices[0].message.content)
+            if isinstance(data.get("treatment"), list):
+                data["treatment"] = " ".join(data["treatment"])
+            if isinstance(data.get("prevention"), list):
+                data["prevention"] = " ".join(data["prevention"])
+            if isinstance(data.get("confidence"), float) and data["confidence"] <= 1.0:
+                data["confidence"] = int(data["confidence"] * 100)
+            return data
+        except Exception as e:
+            print(f"Vision API exception: {e}")
 
-    # 2. Resilient intelligent fallback using Qwen text model with plant pathology knowledge
-    try:
-        import json
-        fallback_prompt = (
-            f"You are an expert plant pathologist and agronomist in India. A farmer has submitted an image scan of their {crop_hint} plant exhibiting leaf spotting and disease symptoms.\n"
-            f"Provide an accurate diagnostic breakdown for {crop_hint} in valid JSON format with keys:\n"
-            f"- 'disease' (specific disease name with Latin binomial, e.g. Early Blight (Alternaria solani))\n"
-            f"- 'confidence' (integer between 85 and 96)\n"
-            f"- 'severity' (Low, Medium, or High)\n"
-            f"- 'symptoms' (list of 3-4 specific leaf/plant symptoms)\n"
-            f"- 'treatment' (string detailing specific chemical fungicides and organic bio-remedies with dosage)\n"
-            f"- 'prevention' (string detailing agronomic field practices and crop rotation)\n"
-        )
-        resp = client.chat.completions.create(
-            messages=[{"role": "user", "content": fallback_prompt}],
-            model="qwen/qwen3.8-27b",
-            response_format={"type": "json_object"}
-        )
-        data = json.loads(resp.choices[0].message.content)
-        if isinstance(data.get("treatment"), list):
-            data["treatment"] = " ".join(data["treatment"])
-        if isinstance(data.get("prevention"), list):
-            data["prevention"] = " ".join(data["prevention"])
-        if isinstance(data.get("confidence"), float) and data["confidence"] <= 1.0:
-            data["confidence"] = int(data["confidence"] * 100)
-        return data
-    except Exception as e2:
-        print(f"Text pathology fallback exception: {e2}")
-        return {
-            "disease": f"{crop_hint} Leaf Blight & Spotting",
-            "confidence": 92,
-            "severity": "Medium",
-            "symptoms": ["Concentric brown lesions on leaves", "Yellowing outer margin", "Premature foliage drying"],
-            "treatment": "Apply Copper Oxychloride 50% WP (2.5g/L water) or Mancozeb 75% WP. Alternatively spray Neem Oil (5ml/L).",
-            "prevention": "Maintain proper crop spacing, ensure field drainage, avoid overhead watering, and practice 3-year crop rotation."
-        }
+        # 2. Resilient intelligent fallback using Qwen text model with plant pathology knowledge
+        try:
+            import json
+            fallback_prompt = (
+                f"You are an expert plant pathologist and agronomist in India. A farmer has submitted an image scan of their {crop_hint} plant exhibiting leaf spotting and disease symptoms.\n"
+                f"Provide an accurate diagnostic breakdown for {crop_hint} in valid JSON format with keys:\n"
+                f"- 'disease' (specific disease name with Latin binomial, e.g. Early Blight (Alternaria solani))\n"
+                f"- 'confidence' (integer between 85 and 96)\n"
+                f"- 'severity' (Low, Medium, or High)\n"
+                f"- 'symptoms' (list of 3-4 specific leaf/plant symptoms)\n"
+                f"- 'treatment' (string detailing specific chemical fungicides and organic bio-remedies with dosage)\n"
+                f"- 'prevention' (string detailing agronomic field practices and crop rotation)\n"
+            )
+            def do_fallback():
+                return client.chat.completions.create(
+                    messages=[{"role": "user", "content": fallback_prompt}],
+                    model="qwen/qwen3.8-27b",
+                    response_format={"type": "json_object"}
+                )
+            resp = await asyncio.to_thread(do_fallback)
+            data = json.loads(resp.choices[0].message.content)
+            if isinstance(data.get("treatment"), list):
+                data["treatment"] = " ".join(data["treatment"])
+            if isinstance(data.get("prevention"), list):
+                data["prevention"] = " ".join(data["prevention"])
+            if isinstance(data.get("confidence"), float) and data["confidence"] <= 1.0:
+                data["confidence"] = int(data["confidence"] * 100)
+            return data
+        except Exception as e2:
+            print(f"Text pathology fallback exception: {e2}")
+            return {
+                "disease": f"{crop_hint} Leaf Blight & Spotting",
+                "confidence": 92,
+                "severity": "Medium",
+                "symptoms": ["Concentric brown lesions on leaves", "Yellowing outer margin", "Premature foliage drying"],
+                "treatment": "Apply Copper Oxychloride 50% WP (2.5g/L water) or Mancozeb 75% WP. Alternatively spray Neem Oil (5ml/L).",
+                "prevention": "Maintain proper crop spacing, ensure field drainage, avoid overhead watering, and practice 3-year crop rotation."
+            }
