@@ -3,11 +3,38 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 import uuid
+import os
+import asyncio
 from database import db, spray_providers_collection, drone_bookings_collection
 from api_routes import manager
 from cache_service import cache_service
+from email_service import send_drone_booking_email
 
 spray_router = APIRouter()
+
+async def dispatch_automated_drone_email(booking: dict, new_status: str):
+    """Real-time automated flight status email dispatcher."""
+    try:
+        farmer_email = booking.get("farmer_email")
+        farmer_id = booking.get("farmer_id")
+
+        if not farmer_email and farmer_id:
+            try:
+                from database import profiles_collection, is_mongo_online
+                if is_mongo_online:
+                    p = await profiles_collection.find_one({"id": farmer_id}, {"email": 1, "_id": 0})
+                    if p:
+                        farmer_email = p.get("email")
+            except Exception:
+                pass
+
+        if not farmer_email:
+            farmer_email = os.getenv("DEFAULT_ALERT_EMAIL", "239x1a3253@gprec.ac.in")
+
+        if farmer_email and "@" in farmer_email:
+            await send_drone_booking_email(farmer_email, booking, new_status)
+    except Exception as e:
+        print(f"Automated drone email dispatch failed: {e}")
 
 # --- Pydantic Request Models ---
 
@@ -178,6 +205,7 @@ async def create_spray_booking(req: CreateBookingRequest):
 
     # Broadcast WebSocket event live
     await manager.broadcast("drone_bookings", "INSERT")
+    asyncio.create_task(dispatch_automated_drone_email(booking_doc, "PENDING"))
     try:
         await cache_service.delete_namespace("drone_bookings")
     except Exception:
@@ -268,6 +296,7 @@ async def update_booking_status(booking_id: str, req: UpdateStatusRequest):
 
     # Broadcast WebSocket update event live
     await manager.broadcast("drone_bookings", "UPDATE")
+    asyncio.create_task(dispatch_automated_drone_email(existing, new_status))
     try:
         await cache_service.delete_namespace("drone_bookings")
     except Exception:

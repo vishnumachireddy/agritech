@@ -350,6 +350,77 @@ async def trigger_weather_alert_email(req: WeatherAlertEmailRequest):
         "email_dispatch": email_result
     }
 
+class AutomatedDefenseScanRequest(BaseModel):
+    email: Optional[str] = None
+    location_name: Optional[str] = "Kurnool, Andhra Pradesh"
+    lat: Optional[float] = 15.8281
+    lon: Optional[float] = 78.0373
+    force_alert: Optional[bool] = False
+
+@weather_router.post("/api/weather/automated-defense-scan")
+async def automated_defense_scan(req: AutomatedDefenseScanRequest):
+    """
+    Real-time automated agro-meteorological monitoring scanner.
+    Analyzes atmospheric conditions and dispatches high-priority email alerts
+    automatically if heavy rain or high wind speeds threaten crops.
+    """
+    recipient_email = req.email or os.getenv("DEFAULT_ALERT_EMAIL", "239x1a3253@gprec.ac.in")
+
+    weather_payload = await get_weather(WeatherRequest(city=req.location_name, lat=req.lat, lon=req.lon))
+    current = weather_payload.get("current", {})
+    temp = current.get("temperature", 30.0)
+    wind = current.get("wind_speed", 12.0)
+    condition = current.get("condition", "Normal")
+
+    forecast = weather_payload.get("forecast", [])
+    max_rain = 0.0
+    for day in forecast[:3]:
+        rain_val = day.get("precipitation") or day.get("rain_mm") or 0.0
+        if isinstance(rain_val, (int, float)) and rain_val > max_rain:
+            max_rain = float(rain_val)
+
+    is_critical = wind > 28.0 or max_rain > 20.0
+    is_warning = wind > 18.0 or max_rain > 5.0 or req.force_alert
+
+    if is_warning or is_critical:
+        severity = "CRITICAL" if is_critical else "WARNING"
+        title = "Severe Storm & Wind Threat" if is_critical else "Adverse Weather Spray Warning"
+        advisory = (
+            "Imminent high wind velocities and precipitation detected. Halt all pesticide and foliar fertilizer spraying. "
+            "Clear field drainage trenches immediately to prevent root rot and waterlogging."
+        )
+
+        email_result = await send_weather_alert_email(
+            to_email=recipient_email,
+            farmer_name="Verified Farmer",
+            location_name=req.location_name,
+            alert_title=title,
+            alert_type="automated_defense",
+            severity=severity,
+            current_temp=temp,
+            wind_speed=wind,
+            precipitation=max_rain,
+            condition=condition,
+            advisory=advisory
+        )
+
+        return {
+            "automated_alert_triggered": True,
+            "severity": severity,
+            "condition": condition,
+            "wind_speed": wind,
+            "precipitation": max_rain,
+            "email_dispatched_to": recipient_email,
+            "dispatch_status": email_result
+        }
+
+    return {
+        "automated_alert_triggered": False,
+        "status": "Atmospheric conditions are stable. Safe for crop spraying and field operations.",
+        "wind_speed": wind,
+        "temperature": temp
+    }
+
 class FertilizerChatRequest(BaseModel):
     message: str
 

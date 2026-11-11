@@ -1,15 +1,19 @@
 from fastapi import APIRouter, HTTPException, Depends, Header, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 import uuid
 import json
 import time
+import os
+import asyncio
+import secrets
 import logging
 from auth import verify_password, get_password_hash, create_access_token, decode_access_token
 from database import db, profiles_collection, crops_collection, orders_collection, is_mongo_online, mark_mongo_offline
 from cache_service import cache_service
+from email_service import send_otp_email, send_order_delivery_email
 
 logger = logging.getLogger("agrosmart.api")
 
@@ -557,6 +561,72 @@ class ProfileUpdateRequest(BaseModel):
     class Config:
         extra = "allow"
 
+class SendOtpRequest(BaseModel):
+    email: str
+    purpose: Optional[str] = "verification"
+
+class VerifyOtpRequest(BaseModel):
+    email: str
+    otp: str
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    otp: str
+    new_password: str
+
+# Central in-memory OTP storage with TTL fallback
+OTP_STORE: Dict[str, dict] = {}
+
+async def dispatch_automated_order_email(order: dict, new_status: str):
+    """
+    Background worker that fetches customer and farmer email and sends automated
+    branded delivery notification receipts in real-time.
+    """
+    try:
+        customer_email = order.get("customer_email") or order.get("buyer_email")
+        customer_id = order.get("customer_id") or order.get("user_id")
+
+        if not customer_email and customer_id:
+            if is_mongo_online:
+                try:
+                    p = await profiles_collection.find_one({"id": customer_id}, {"email": 1, "_id": 0})
+                    if p:
+                        customer_email = p.get("email")
+                except Exception:
+                    pass
+            if not customer_email:
+                p = next((u for u in IN_MEMORY_USERS if u.get("id") == customer_id), None)
+                if p:
+                    customer_email = p.get("email")
+
+        # Fallback to configured alert email for testing/demo orders
+        if not customer_email:
+            customer_email = os.getenv("DEFAULT_ALERT_EMAIL", "239x1a3253@gprec.ac.in")
+
+        if customer_email and "@" in customer_email:
+            logger.info(f"Triggering automated order email for order {order.get('id')} -> {customer_email} ({new_status})")
+            await send_order_delivery_email(customer_email, order, new_status, "consumer")
+
+        farmer_id = order.get("farmer_id")
+        if farmer_id:
+            farmer_email = None
+            if is_mongo_online:
+                try:
+                    f = await profiles_collection.find_one({"id": farmer_id}, {"email": 1, "_id": 0})
+                    if f:
+                        farmer_email = f.get("email")
+                except Exception:
+                    pass
+            if not farmer_email:
+                f = next((u for u in IN_MEMORY_USERS if u.get("id") == farmer_id), None)
+                if f:
+                    farmer_email = f.get("email")
+            if farmer_email and "@" in farmer_email and farmer_email != customer_email:
+                await send_order_delivery_email(farmer_email, order, new_status, "farmer")
+    except Exception as e:
+        logger.error(f"Automated order email dispatch failed: {e}")
+
+
 @router.post("/api/auth/register")
 async def register(req: RegisterRequest):
     existing = None
@@ -683,6 +753,139 @@ async def update_profile(req: ProfileUpdateRequest, authorization: Optional[str]
                 u.update(update_data)
 
     return await get_me(authorization=authorization)
+
+# --- Email OTP Verification & Password Recovery Endpoints ---
+
+@router.post("/api/auth/send-otp")
+async def send_otp_endpoint(req: SendOtpRequest):
+    email = req.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="A valid email address is required")
+
+    otp = f"{secrets.randbelow(900000) + 100000}"
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+    otp_data = {
+        "email": email,
+        "otp": otp,
+        "purpose": req.purpose or "Verification",
+        "expires_at": expires_at,
+        "verified": False,
+        "created_at": datetime.utcnow().isoformat()
+    }
+
+    OTP_STORE[email] = otp_data
+
+    if is_mongo_online:
+        try:
+            await db.get_collection("auth_otps").update_one(
+                {"email": email},
+                {"$set": otp_data},
+                upsert=True
+            )
+        except Exception as e:
+            logger.warning(f"Failed to persist OTP to MongoDB: {e}")
+
+    # Dispatch email asynchronously in background with zero event loop lag
+    asyncio.create_task(send_otp_email(email, otp, req.purpose or "Verification"))
+    logger.info(f"Dispatched automated OTP to {email} for {req.purpose}")
+
+    return {
+        "success": True,
+        "message": f"6-digit verification code dispatched to {email}",
+        "expires_in_seconds": 600
+    }
+
+@router.post("/api/auth/verify-otp")
+async def verify_otp_endpoint(req: VerifyOtpRequest):
+    email = req.email.strip().lower()
+    otp = req.otp.strip()
+
+    record = OTP_STORE.get(email)
+    if not record and is_mongo_online:
+        try:
+            record = await db.get_collection("auth_otps").find_one({"email": email})
+        except Exception:
+            pass
+
+    if not record:
+        raise HTTPException(status_code=400, detail="No active verification code found for this email. Please request a new OTP.")
+
+    if datetime.utcnow() > record.get("expires_at", datetime.min):
+        raise HTTPException(status_code=400, detail="Verification code has expired. Please request a fresh OTP.")
+
+    if record.get("otp") != otp:
+        raise HTTPException(status_code=400, detail="Invalid verification code. Please check and try again.")
+
+    record["verified"] = True
+    OTP_STORE[email] = record
+
+    if is_mongo_online:
+        try:
+            await db.get_collection("auth_otps").update_one({"email": email}, {"$set": {"verified": True}})
+            await profiles_collection.update_many({"email": email}, {"$set": {"is_email_verified": True}})
+        except Exception:
+            pass
+
+    return {
+        "success": True,
+        "verified": True,
+        "message": "Email successfully verified!"
+    }
+
+@router.post("/api/auth/reset-password")
+async def reset_password_endpoint(req: ResetPasswordRequest):
+    email = req.email.strip().lower()
+    otp = req.otp.strip()
+    new_password = req.new_password
+
+    if not new_password or len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+
+    record = OTP_STORE.get(email)
+    if not record and is_mongo_online:
+        try:
+            record = await db.get_collection("auth_otps").find_one({"email": email})
+        except Exception:
+            pass
+
+    if not record or record.get("otp") != otp:
+        raise HTTPException(status_code=400, detail="Invalid or missing OTP code for password reset")
+
+    if datetime.utcnow() > record.get("expires_at", datetime.min):
+        raise HTTPException(status_code=400, detail="OTP has expired. Please request a fresh reset code")
+
+    hashed_pw = get_password_hash(new_password)
+
+    user_found = False
+    if is_mongo_online:
+        try:
+            res = await profiles_collection.update_many({"email": email}, {"$set": {"password": hashed_pw}})
+            if res.modified_count > 0:
+                user_found = True
+        except Exception as e:
+            logger.error(f"Error resetting password in MongoDB: {e}")
+
+    for u in IN_MEMORY_USERS:
+        if u.get("email") == email:
+            u["password"] = hashed_pw
+            user_found = True
+
+    if not user_found:
+        raise HTTPException(status_code=404, detail="No registered account found with this email address")
+
+    OTP_STORE.pop(email, None)
+    if is_mongo_online:
+        try:
+            await db.get_collection("auth_otps").delete_many({"email": email})
+        except Exception:
+            pass
+
+    logger.info(f"Successfully reset password for {email}")
+    return {
+        "success": True,
+        "message": "Password reset successfully. You can now log in with your new password."
+    }
 
 # --- Specific RPC Endpoints ---
 
@@ -961,6 +1164,10 @@ async def create_record(table: str, request: Request):
     except Exception:
         pass
 
+    # Real-time automated email notifications
+    if table == "orders":
+        asyncio.create_task(dispatch_automated_order_email(record_copy, record_copy.get("status", "pending")))
+
     try:
         await cache_service.delete_namespace(table)
     except Exception:
@@ -1127,6 +1334,13 @@ async def update_record(table: str, request: Request):
                                 await manager.broadcast("orders", "UPDATE", {**payload_data, "id": target_id, **data})
                     except Exception:
                         pass
+
+                    # Automated Real-time Order Status Email Dispatch
+                    if table == "orders" and "status" in data:
+                        merged_info = dict(target_order or (results[0] if results else query_params))
+                        merged_info.update(data)
+                        asyncio.create_task(dispatch_automated_order_email(merged_info, data["status"]))
+
                     return results
             except HTTPException:
                 raise
@@ -1179,6 +1393,12 @@ async def update_record(table: str, request: Request):
                     await manager.broadcast("orders", "UPDATE", {**fallback_data, "id": target_id, **data})
         except Exception:
             pass
+
+        # Automated Real-time Order Status Email Dispatch (Fallback path)
+        if table == "orders" and "status" in data:
+            merged_info = dict(target_order or (updated_items[0] if updated_items else query_params))
+            merged_info.update(data)
+            asyncio.create_task(dispatch_automated_order_email(merged_info, data["status"]))
 
         return updated_items
     return []
