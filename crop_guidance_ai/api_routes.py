@@ -702,14 +702,23 @@ async def register(req: RegisterRequest):
 
 @router.post("/api/auth/login")
 async def login(req: LoginRequest):
+    clean_email = req.email.strip().lower()
+
+    # Fast-path: Check demo users in-memory for instant 0ms demo logins
+    demo_user = next((u for u in IN_MEMORY_USERS if u["email"].lower() == clean_email), None)
+    if demo_user and verify_password(req.password, demo_user.get("password", "")):
+        token = create_access_token({"sub": demo_user["id"], "role": demo_user["role"]})
+        safe_user = {k: v for k, v in demo_user.items() if k not in ("password", "_id")}
+        return {"token": token, "user": safe_user}
+
     user = None
     try:
-        user = await profiles_collection.find_one({"email": req.email})
+        user = await profiles_collection.find_one({"email": clean_email})
     except Exception as e:
         print(f"MongoDB query fallback for login: {e}")
 
     if not user:
-        user = next((u for u in IN_MEMORY_USERS if u["email"] == req.email), None)
+        user = demo_user
 
     if not user or not verify_password(req.password, user.get("password", "")):
         raise HTTPException(status_code=400, detail="Invalid credentials. Please check email and password.")

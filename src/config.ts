@@ -2,7 +2,7 @@
 
 const rawBackend = 
   import.meta.env.VITE_BACKEND_URL || 
-  (import.meta.env.DEV ? "http://localhost:8000" : "https://smart-farming-rgm.onrender.com");
+  (import.meta.env.DEV ? "http://localhost:8000" : "https://agritech-l40h.onrender.com");
 
 export const BACKEND_URL = rawBackend.replace(/\/+$/, "");
 

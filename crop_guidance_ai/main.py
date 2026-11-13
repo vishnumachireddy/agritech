@@ -44,7 +44,7 @@ app = FastAPI(
 # Restrict origins to trusted domains, never use wildcard with allow_credentials=True
 raw_origins = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:5173,http://localhost:8080,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:8080,https://smart-farming-rgm.onrender.com"
+    "http://localhost:5173,http://localhost:8080,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:8080,https://smart-farming-rgm.onrender.com,https://agritech-l40h.onrender.com"
 )
 allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
 

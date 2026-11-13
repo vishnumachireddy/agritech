@@ -21,8 +21,9 @@ LEGACY_STATIC_SALT = "agri_assist_static_salt_2026"
 def get_password_hash(password: str) -> str:
     """
     Hash passwords using salted bcrypt (Blowfish-based key derivation).
+    Rounds=10 provides strong OWASP-compliant security with high responsiveness on cloud instances.
     """
-    salt = bcrypt.gensalt(rounds=12)
+    salt = bcrypt.gensalt(rounds=10)
     hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
     return hashed.decode("utf-8")
 
