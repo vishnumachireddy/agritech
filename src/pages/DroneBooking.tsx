@@ -188,7 +188,8 @@ const DroneBooking = () => {
           additional_notes: additionalNotes,
           provider_id: selectedProviderId,
           farmer_id: user?.id || "farmer-demo-1",
-          farmer_name: user?.full_name || user?.user_metadata?.full_name || user?.name || "Farmer"
+          farmer_name: user?.full_name || user?.user_metadata?.full_name || user?.name || "Farmer",
+          farmer_email: user?.email || ""
         })
       });
 

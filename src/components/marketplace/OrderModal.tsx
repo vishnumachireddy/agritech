@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { API_BASE } from "@/config";
+import { useAuth } from "@/hooks/useAuth";
 import type { MarketCrop } from "./CropCard";
 
 interface OrderModalProps {
@@ -16,6 +17,7 @@ interface OrderModalProps {
 }
 
 const OrderModal = ({ item, mode, userId, onClose }: OrderModalProps) => {
+  const { user } = useAuth();
   const [qty, setQty] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -30,6 +32,8 @@ const OrderModal = ({ item, mode, userId, onClose }: OrderModalProps) => {
 
     setSubmitting(true);
     const orderId = `${mode === "bulk" ? "bulk" : "ord"}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const customerEmail = user?.email || "";
+    const customerName = user?.full_name || "Valued Customer";
 
     if (mode === "buy") {
       try {
@@ -40,6 +44,9 @@ const OrderModal = ({ item, mode, userId, onClose }: OrderModalProps) => {
             id: orderId,
             consumer_id: userId,
             customer_id: userId,
+            customer_name: customerName,
+            customer_email: customerEmail,
+            buyer_email: customerEmail,
             farmer_id: item.farmer_id,
             farmer_name: item.farmer_name,
             crop_id: item.farmer_id,
@@ -74,6 +81,9 @@ const OrderModal = ({ item, mode, userId, onClose }: OrderModalProps) => {
             id: orderId,
             consumer_id: userId,
             customer_id: userId,
+            customer_name: customerName,
+            customer_email: customerEmail,
+            buyer_email: customerEmail,
             farmer_id: item.farmer_id,
             farmer_name: item.farmer_name,
             crop_id: item.farmer_id,
@@ -98,6 +108,9 @@ const OrderModal = ({ item, mode, userId, onClose }: OrderModalProps) => {
             order_id: orderId,
             customer_id: userId,
             consumer_id: userId,
+            customer_name: customerName,
+            customer_email: customerEmail,
+            buyer_email: customerEmail,
             farmer_id: item.farmer_id,
             farmer_name: item.farmer_name,
             crop_name: item.crop_name,

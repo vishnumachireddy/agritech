@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { API_BASE } from "@/config";
 
@@ -25,6 +26,10 @@ const Register = () => {
   const [phone, setPhone] = useState("");
   const [region, setRegion] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showOtpDialog, setShowOtpDialog] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
 
   // Farmer-specific fields
   const [primaryCrop, setPrimaryCrop] = useState("");
@@ -62,8 +67,12 @@ const Register = () => {
     }
   }, [role]);
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleInitiateRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !email.includes("@")) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters");
       return;
@@ -77,16 +86,44 @@ const Register = () => {
       return;
     }
 
-    setLoading(true);
+    setSendingOtp(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), purpose: "registration" })
+      });
 
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to dispatch verification code");
+      }
+
+      setShowOtpDialog(true);
+      toast.success(`Verification code dispatched to ${email}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to dispatch OTP. Please check your email connection.");
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleVerifyAndCompleteRegister = async () => {
+    if (!otpCode || otpCode.trim().length !== 6) {
+      toast.error("Please enter the 6-digit verification code");
+      return;
+    }
+
+    setVerifyingOtp(true);
     try {
       const payload: Record<string, any> = {
-        email,
+        email: email.trim().toLowerCase(),
         password,
         full_name: fullName,
         role,
         phone,
-        region
+        region,
+        otp: otpCode.trim()
       };
 
       if (role === "farmer") {
@@ -117,16 +154,17 @@ const Register = () => {
       }
 
       login(data.user, data.token);
-      toast.success("Account created successfully!");
+      toast.success("Account created and verified successfully!");
+      setShowOtpDialog(false);
       if (role === "consumer") {
         navigate("/consumer/dashboard");
       } else {
         navigate("/farmer/dashboard");
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to create account. Please try again.");
+      toast.error(err.message || "Verification failed. Please check your OTP code.");
     } finally {
-      setLoading(false);
+      setVerifyingOtp(false);
     }
   };
 
@@ -141,7 +179,7 @@ const Register = () => {
           <CardDescription>Join AgriAssist as a farmer or consumer</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleRegister} className="space-y-4">
+          <form onSubmit={handleInitiateRegister} className="space-y-4">
             {/* Role Selection */}
             <div className="space-y-2">
               <Label>Role</Label>
@@ -268,8 +306,8 @@ const Register = () => {
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Create Account"}
+            <Button type="submit" className="w-full" disabled={sendingOtp}>
+              {sendingOtp ? "Sending Verification Code..." : "Verify Email & Register"}
             </Button>
           </form>
           <p className="text-center text-sm text-muted-foreground mt-4">
@@ -278,6 +316,57 @@ const Register = () => {
           </p>
         </CardContent>
       </Card>
+
+      {/* 6-Digit Email OTP Verification Dialog */}
+      <Dialog open={showOtpDialog} onOpenChange={setShowOtpDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
+              <span>🌾</span> Verify Email Address
+            </DialogTitle>
+            <DialogDescription>
+              We've dispatched a 6-digit verification code to <strong className="text-primary">{email}</strong>. Please check your inbox or spam folder.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="otp">Enter 6-Digit OTP</Label>
+              <Input
+                id="otp"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="123456"
+                className="text-center text-2xl tracking-widest font-mono font-bold"
+                autoFocus
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Verification codes expire in 10 minutes. Please enter the code to activate your account.
+            </p>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleInitiateRegister({ preventDefault: () => {} } as any)}
+              disabled={sendingOtp || verifyingOtp}
+            >
+              {sendingOtp ? "Resending..." : "Resend OTP"}
+            </Button>
+            <Button
+              type="button"
+              className="agri-gradient"
+              onClick={handleVerifyAndCompleteRegister}
+              disabled={verifyingOtp || otpCode.length !== 6}
+            >
+              {verifyingOtp ? "Verifying..." : "Verify & Complete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

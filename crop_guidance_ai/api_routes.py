@@ -511,6 +511,7 @@ class RegisterRequest(BaseModel):
     password: str
     full_name: str
     role: str
+    otp: Optional[str] = None
     region: Optional[str] = ""
     phone: Optional[str] = ""
     primary_crop: Optional[str] = ""
@@ -640,6 +641,20 @@ async def register(req: RegisterRequest):
 
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
+
+    if req.otp:
+        clean_email = req.email.strip().lower()
+        clean_otp = req.otp.strip()
+        record = OTP_STORE.get(clean_email)
+        if not record and is_mongo_online:
+            try:
+                record = await db.get_collection("auth_otps").find_one({"email": clean_email})
+            except Exception:
+                pass
+        if not record or str(record.get("otp")).strip() != clean_otp:
+            raise HTTPException(status_code=400, detail="Invalid verification code. Please check your email.")
+        if datetime.utcnow() > record.get("expires_at", datetime.min):
+            raise HTTPException(status_code=400, detail="Verification code has expired. Please request a new OTP.")
     
     user_id = str(uuid.uuid4())
     hashed_pw = get_password_hash(req.password)
@@ -650,6 +665,7 @@ async def register(req: RegisterRequest):
         "password": hashed_pw,
         "full_name": req.full_name,
         "role": req.role,
+        "is_email_verified": True if req.otp else False,
         "region": req.region,
         "phone": req.phone,
         "primary_crop": req.primary_crop,
@@ -786,14 +802,23 @@ async def send_otp_endpoint(req: SendOtpRequest):
         except Exception as e:
             logger.warning(f"Failed to persist OTP to MongoDB: {e}")
 
-    # Dispatch email asynchronously in background with zero event loop lag
-    asyncio.create_task(send_otp_email(email, otp, req.purpose or "Verification"))
+    # Dispatch email
+    dispatch_res = await send_otp_email(email, otp, req.purpose or "Verification")
+    if dispatch_res.get("status") == "error":
+        error_msg = dispatch_res.get("error", "SMTP delivery failure")
+        logger.error(f"Failed to dispatch OTP email to {email}: {error_msg}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Email delivery error: {error_msg}. If using Brevo SMTP, please ensure your IP address is authorized in Brevo or use Gmail App Password."
+        )
+
     logger.info(f"Dispatched automated OTP to {email} for {req.purpose}")
 
     return {
         "success": True,
         "message": f"6-digit verification code dispatched to {email}",
-        "expires_in_seconds": 600
+        "expires_in_seconds": 600,
+        "mode": dispatch_res.get("mode")
     }
 
 @router.post("/api/auth/verify-otp")

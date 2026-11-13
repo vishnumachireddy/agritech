@@ -1,6 +1,7 @@
 import os
 import smtplib
 import asyncio
+import re
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import datetime
@@ -15,14 +16,27 @@ load_dotenv("crop_guidance_ai/.env")
 
 logger = logging.getLogger("agrosmart.email")
 
+def get_sender_email(from_addr: str) -> str:
+    """Extract bare email from 'Name <email@domain.com>' or return raw email."""
+    match = re.search(r'<([^>]+)>', from_addr or "")
+    if match:
+        return match.group(1).strip()
+    clean = (from_addr or "").strip()
+    if "@" in clean:
+        return clean
+    return "239x1a3253@gprec.ac.in"
+
 def get_smtp_config():
+    from_addr = os.getenv("SMTP_FROM", "AgriSmart <239x1a3253@gprec.ac.in>")
     return {
         "host": os.getenv("SMTP_HOST", "smtp-relay.brevo.com"),
         "port": int(os.getenv("SMTP_PORT", "587")),
         "user": os.getenv("SMTP_USER", ""),
         "password": os.getenv("SMTP_PASSWORD", os.getenv("SMTP_PASS", "")),
-        "from_addr": os.getenv("SMTP_FROM", "AgriSmart <239x1a3253@gprec.ac.in>"),
-        "resend_key": os.getenv("RESEND_API_KEY", "")
+        "from_addr": from_addr,
+        "sender_email": get_sender_email(from_addr),
+        "resend_key": os.getenv("RESEND_API_KEY", ""),
+        "brevo_api_key": os.getenv("BREVO_API_KEY", "")
     }
 
 def _sync_send_smtp(cfg: dict, to_email: str, subject: str, html_content: str):
@@ -35,28 +49,58 @@ def _sync_send_smtp(cfg: dict, to_email: str, subject: str, html_content: str):
 
     port = cfg["port"]
     if port == 465:
-        server = smtplib.SMTP_SSL(cfg["host"], port, timeout=8.0)
+        server = smtplib.SMTP_SSL(cfg["host"], port, timeout=10.0)
     else:
-        server = smtplib.SMTP(cfg["host"], port, timeout=8.0)
+        server = smtplib.SMTP(cfg["host"], port, timeout=10.0)
         server.starttls()
 
     server.login(cfg["user"], cfg["password"])
-    server.sendmail(cfg["from_addr"], [to_email], msg.as_string())
+    # Envelope from must be bare email address
+    server.sendmail(cfg["sender_email"], [to_email], msg.as_string())
     server.quit()
 
 async def _dispatch_email(to_email: str, subject: str, html_content: str) -> dict:
     """
     Central, non-blocking email dispatch engine.
     Order of operations:
-    1. Resend API (if configured)
-    2. SMTP Relay via Brevo / Gmail (non-blocking thread)
-    3. Resilient Simulated Fallback (logs safely with zero crash)
+    1. Brevo REST API (if BREVO_API_KEY or xkeysib- password provided — immune to IP blocking)
+    2. Resend API (if configured)
+    3. SMTP Relay via Gmail / Brevo (non-blocking thread)
+    4. Clear error reporting if configured credentials fail (NO fake successes)
+    5. Fallback simulation ONLY if completely unconfigured
     """
     cfg = get_smtp_config()
     msg_id = f"msg-{uuid.uuid4().hex[:10]}"
     now_iso = datetime.datetime.utcnow().isoformat()
+    last_error = None
 
-    # 1. Resend API
+    # 1. Brevo REST API (if xkeysib- API key provided)
+    brevo_key = cfg.get("brevo_api_key") or (cfg["password"] if cfg["password"].startswith("xkeysib-") else None)
+    if brevo_key:
+        try:
+            sender_email = cfg["sender_email"]
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={"api-key": brevo_key, "Content-Type": "application/json"},
+                    json={
+                        "sender": {"name": "AgriSmart", "email": sender_email},
+                        "to": [{"email": to_email}],
+                        "subject": subject,
+                        "htmlContent": html_content
+                    }
+                )
+                if res.status_code in (200, 201):
+                    logger.info(f"Dispatched email via Brevo REST API to {to_email}")
+                    return {"status": "success", "delivered": True, "mode": "brevo_api", "recipient": to_email, "message_id": msg_id, "timestamp": now_iso}
+                else:
+                    last_error = f"Brevo API error ({res.status_code}): {res.text}"
+                    logger.error(last_error)
+        except Exception as e:
+            last_error = f"Brevo API exception: {e}"
+            logger.error(last_error)
+
+    # 2. Resend API
     if cfg["resend_key"]:
         try:
             async with httpx.AsyncClient(timeout=6.0) as client:
@@ -73,28 +117,47 @@ async def _dispatch_email(to_email: str, subject: str, html_content: str) -> dic
                 if res.status_code in (200, 201):
                     logger.info(f"Dispatched email via Resend to {to_email}")
                     return {"status": "success", "delivered": True, "mode": "resend", "recipient": to_email, "message_id": msg_id, "timestamp": now_iso}
+                else:
+                    last_error = f"Resend API error: {res.text}"
+                    logger.error(last_error)
         except Exception as e:
-            logger.error(f"Resend dispatch error: {e}")
+            last_error = f"Resend exception: {e}"
+            logger.error(last_error)
 
-    # 2. SMTP (Brevo / Gmail)
-    if cfg["host"] and cfg["user"] and cfg["password"]:
+    # 3. SMTP (Gmail / Brevo SMTP Relay)
+    if cfg["host"] and cfg["user"] and cfg["password"] and not cfg["password"].startswith("xkeysib-"):
         try:
             await asyncio.to_thread(_sync_send_smtp, cfg, to_email, subject, html_content)
             logger.info(f"Dispatched email via SMTP ({cfg['host']}) to {to_email}")
             return {"status": "success", "delivered": True, "mode": "smtp", "recipient": to_email, "message_id": msg_id, "timestamp": now_iso}
         except Exception as e:
+            last_error = f"SMTP error ({cfg['host']}): {e}"
             logger.error(f"SMTP dispatch error to {to_email}: {e}")
 
-    # 3. Simulated Fallback
-    logger.info(f"[SIMULATED EMAIL DISPATCH] To: {to_email} | Subject: {subject}")
+    # 4. If credentials were provided but failed, DO NOT PRETEND SUCCESS! Report actual error!
+    if last_error:
+        logger.error(f"[EMAIL DISPATCH FAILED] To: {to_email} | Error: {last_error}")
+        return {
+            "status": "error",
+            "delivered": False,
+            "mode": "failed",
+            "recipient": to_email,
+            "error": last_error,
+            "message_id": msg_id,
+            "timestamp": now_iso
+        }
+
+    # 5. Simulated Fallback (ONLY if zero credentials configured in development)
+    logger.info(f"[SIMULATED EMAIL DISPATCH - NO CREDENTIALS CONFIGURED] To: {to_email} | Subject: {subject}")
     return {
-        "status": "success",
-        "delivered": True,
+        "status": "simulated",
+        "delivered": False,
         "mode": "simulated",
         "recipient": to_email,
         "message_id": msg_id,
         "subject": subject,
-        "timestamp": now_iso
+        "timestamp": now_iso,
+        "note": "No SMTP credentials configured. Running in local simulation mode."
     }
 
 # ==============================================================================
