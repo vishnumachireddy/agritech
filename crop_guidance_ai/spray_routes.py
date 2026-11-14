@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, date
+from zoneinfo import ZoneInfo
 import uuid
 import os
 import asyncio
@@ -11,6 +12,47 @@ from cache_service import cache_service
 from email_service import send_drone_booking_email
 
 spray_router = APIRouter()
+
+KOLKATA_TZ = ZoneInfo("Asia/Kolkata")
+
+def validate_booking_date(date_str: str) -> str:
+    """
+    Validates booking date in Asia/Kolkata timezone (IST, UTC+5:30).
+    Rejects past dates (e.g. Nov 11, Nov 12, Nov 13, 2026).
+    Accepts today, tomorrow, or any future date.
+    Returns normalized YYYY-MM-DD string.
+    """
+    if not date_str or not str(date_str).strip():
+        raise HTTPException(status_code=400, detail="Booking date is required.")
+
+    clean_str = str(date_str).strip().split("T")[0]
+    parsed_date = None
+    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d"):
+        try:
+            parsed_date = datetime.strptime(clean_str, fmt).date()
+            break
+        except ValueError:
+            continue
+
+    if not parsed_date:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid date format '{date_str}'. Please provide a valid date in YYYY-MM-DD format."
+        )
+
+    # Calculate authoritative current date in Indian Standard Time
+    today_ist = datetime.now(KOLKATA_TZ).date()
+
+    if parsed_date < today_ist:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Booking date '{parsed_date.strftime('%d-%m-%Y')}' is in the past. "
+                f"Spray bookings are only accepted for today ({today_ist.strftime('%d-%m-%Y')}) or future dates."
+            )
+        )
+
+    return parsed_date.strftime("%Y-%m-%d")
 
 async def dispatch_automated_drone_email(booking: dict, new_status: str):
     """Real-time automated flight status email dispatcher."""
@@ -154,6 +196,9 @@ async def create_spray_booking(req: CreateBookingRequest):
     if req.field_area <= 0:
         raise HTTPException(status_code=400, detail="Field area must be greater than 0")
 
+    # Authoritative date validation (Asia/Kolkata timezone)
+    validated_booking_date = validate_booking_date(req.booking_date)
+
     # Fetch authoritative rate from provider record
     provider = None
     try:
@@ -183,7 +228,7 @@ async def create_spray_booking(req: CreateBookingRequest):
         "crop": req.crop,
         "field_area": req.field_area,
         "area_unit": req.area_unit,
-        "booking_date": req.booking_date,
+        "booking_date": validated_booking_date,
         "preferred_time": req.preferred_time,
         "field_location": req.field_location,
         "additional_notes": req.additional_notes,

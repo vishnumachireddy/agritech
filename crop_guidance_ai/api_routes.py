@@ -13,7 +13,14 @@ import logging
 from auth import verify_password, get_password_hash, create_access_token, decode_access_token
 from database import db, profiles_collection, crops_collection, orders_collection, is_mongo_online, mark_mongo_offline
 from cache_service import cache_service
-from email_service import send_otp_email, send_order_delivery_email
+from email_service import (
+    send_otp_email,
+    send_order_delivery_email,
+    send_production_milestone_email,
+    send_new_production_availability_email,
+    send_harvest_ready_email,
+    send_bulk_order_event_email
+)
 
 logger = logging.getLogger("agrosmart.api")
 
@@ -628,6 +635,250 @@ async def dispatch_automated_order_email(order: dict, new_status: str):
         logger.error(f"Automated order email dispatch failed: {e}")
 
 
+async def get_interested_buyers_for_crop(crop_name: str, region: Optional[str] = None) -> list:
+    """
+    Finds consumer profiles interested in the crop without hardcoded test emails.
+    Queries previous orders, bulk contracts, and active consumer profiles.
+    """
+    interested = []
+    seen_emails = set()
+    clean_crop = (crop_name or "").strip()
+
+    try:
+        if is_mongo_online:
+            # 1. Query past orders / bulk_orders matching this crop
+            regex_query = {"$regex": clean_crop, "$options": "i"} if clean_crop else {"$exists": True}
+            orders_cur = db.get_collection("orders").find(
+                {"crop_name": regex_query},
+                {"customer_email": 1, "consumer_id": 1, "customer_id": 1, "customer_name": 1, "_id": 0}
+            ).limit(10)
+            past_orders = await orders_cur.to_list(length=10)
+            user_ids = set()
+
+            for o in past_orders:
+                em = (o.get("customer_email") or "").strip().lower()
+                if em and "@" in em and em not in seen_emails:
+                    seen_emails.add(em)
+                    interested.append({"email": em, "full_name": o.get("customer_name", "Valued Buyer")})
+                uid = o.get("consumer_id") or o.get("customer_id")
+                if uid:
+                    user_ids.add(uid)
+
+            # Query consumer profiles for those user_ids
+            if user_ids:
+                prof_cur = profiles_collection.find(
+                    {"id": {"$in": list(user_ids)}},
+                    {"email": 1, "full_name": 1, "_id": 0}
+                )
+                profiles = await prof_cur.to_list(length=10)
+                for p in profiles:
+                    em = (p.get("email") or "").strip().lower()
+                    if em and "@" in em and em not in seen_emails:
+                        seen_emails.add(em)
+                        interested.append({"email": em, "full_name": p.get("full_name", "Valued Buyer")})
+
+            # If fewer than 2 buyers found, query all active consumer profiles
+            if len(interested) < 3:
+                c_cur = profiles_collection.find(
+                    {"role": "consumer"},
+                    {"email": 1, "full_name": 1, "_id": 0}
+                ).limit(5)
+                consumers = await c_cur.to_list(length=5)
+                for c in consumers:
+                    em = (c.get("email") or "").strip().lower()
+                    if em and "@" in em and em not in seen_emails:
+                        seen_emails.add(em)
+                        interested.append({"email": em, "full_name": c.get("full_name", "Registered Consumer")})
+    except Exception as e:
+        logger.warning(f"Error querying interested buyers for {crop_name}: {e}")
+
+    # Fallback to in-memory demo consumers or default alert email if list is empty
+    if not interested:
+        for u in IN_MEMORY_USERS:
+            if u.get("role") == "consumer":
+                em = (u.get("email") or "").strip().lower()
+                if em and "@" in em and em not in seen_emails:
+                    seen_emails.add(em)
+                    interested.append({"email": em, "full_name": u.get("full_name", "Consumer")})
+
+    if not interested:
+        alert_email = os.getenv("DEFAULT_ALERT_EMAIL", "239x1a3253@gprec.ac.in")
+        interested.append({"email": alert_email, "full_name": "AgroSmart Procurement Partner"})
+
+    return interested
+
+
+async def dispatch_crop_production_events(crop: dict, event: str = "created"):
+    """Dispatches automated milestone emails when a farmer lists new production availability."""
+    try:
+        crop_name = crop.get("name") or crop.get("crop_name", "Produce")
+        farmer_id = crop.get("farmer_id")
+        farmer_name = crop.get("farmer_name", "Farmer")
+        farmer_email = crop.get("farmer_email")
+
+        # Resolve farmer email
+        if not farmer_email and farmer_id and is_mongo_online:
+            try:
+                p = await profiles_collection.find_one({"id": farmer_id}, {"email": 1, "full_name": 1, "_id": 0})
+                if p:
+                    farmer_email = p.get("email")
+                    farmer_name = p.get("full_name", farmer_name)
+            except Exception:
+                pass
+
+        if not farmer_email:
+            farmer_email = os.getenv("DEFAULT_ALERT_EMAIL", "239x1a3253@gprec.ac.in")
+
+        # 1. Notify farmer of published production batch
+        if farmer_email and "@" in farmer_email:
+            await send_new_production_availability_email(farmer_email, crop, farmer_name)
+
+        # 2. Identify interested buyers and dispatch email
+        buyers = await get_interested_buyers_for_crop(crop_name, crop.get("location"))
+        for buyer in buyers:
+            b_email = buyer["email"]
+            if b_email != farmer_email:
+                await send_new_production_availability_email(b_email, crop, buyer["full_name"])
+
+        # 3. Broadcast to notification center
+        await manager.broadcast("notifications", "INSERT", {
+            "id": f"notif-p-{uuid.uuid4().hex[:8]}",
+            "title": f"🌾 New Produce Listing: {crop_name}",
+            "message": f"Farmer {farmer_name} published {crop.get('quantity', crop.get('available_quantity', ''))} {crop.get('unit', 'kg')} of {crop_name}.",
+            "type": "production_listing",
+            "created_at": datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Error in dispatch_crop_production_events: {e}")
+
+
+async def dispatch_crop_production_update_events(previous_crop: dict, update_data: dict):
+    """
+    Triggered when a farmer updates production quantity or status (e.g. 5,000kg -> 3,000kg or harvest_ready).
+    Notifies eligible consumers/buyers and the farmer.
+    """
+    try:
+        merged = dict(previous_crop)
+        merged.update(update_data)
+
+        crop_name = merged.get("name") or merged.get("crop_name", "Produce")
+        farmer_name = merged.get("farmer_name", "Farmer")
+        farmer_id = merged.get("farmer_id")
+        farmer_email = merged.get("farmer_email")
+
+        if not farmer_email and farmer_id and is_mongo_online:
+            try:
+                p = await profiles_collection.find_one({"id": farmer_id}, {"email": 1, "full_name": 1, "_id": 0})
+                if p:
+                    farmer_email = p.get("email")
+                    farmer_name = p.get("full_name", farmer_name)
+            except Exception:
+                pass
+
+        if not farmer_email:
+            farmer_email = os.getenv("DEFAULT_ALERT_EMAIL", "239x1a3253@gprec.ac.in")
+
+        old_qty = float(previous_crop.get("available_quantity", previous_crop.get("quantity", 0)))
+        new_qty = float(update_data.get("available_quantity", update_data.get("quantity", old_qty)))
+
+        status = str(update_data.get("production_status") or update_data.get("status") or "").strip().lower()
+
+        buyers = await get_interested_buyers_for_crop(crop_name, merged.get("location"))
+
+        # Event A: Quantity Update Milestone
+        if new_qty != old_qty:
+            logger.info(f"[PROD MILESTONE] Crop {crop_name} quantity changed from {old_qty} to {new_qty}")
+            # Notify farmer
+            if farmer_email and "@" in farmer_email:
+                await send_production_milestone_email(farmer_email, merged, old_qty, new_qty, farmer_name, is_farmer=True)
+            # Notify eligible buyers
+            for buyer in buyers:
+                if buyer["email"] != farmer_email:
+                    await send_production_milestone_email(buyer["email"], merged, old_qty, new_qty, buyer["full_name"], is_farmer=False)
+
+            # Update notification center
+            await manager.broadcast("notifications", "INSERT", {
+                "id": f"notif-q-{uuid.uuid4().hex[:8]}",
+                "title": f"🌾 Production Update: {crop_name}",
+                "message": f"Farmer {farmer_name} updated available quantity to {new_qty} {merged.get('unit', 'kg')}.",
+                "type": "production_update",
+                "created_at": datetime.utcnow().isoformat()
+            })
+
+        # Event B: Harvest Ready Status
+        if status == "harvest_ready":
+            logger.info(f"[HARVEST READY] Crop {crop_name} is now harvest ready!")
+            if farmer_email and "@" in farmer_email:
+                await send_harvest_ready_email(farmer_email, merged, farmer_name)
+            for buyer in buyers:
+                if buyer["email"] != farmer_email:
+                    await send_harvest_ready_email(buyer["email"], merged, buyer["full_name"])
+
+            await manager.broadcast("notifications", "INSERT", {
+                "id": f"notif-h-{uuid.uuid4().hex[:8]}",
+                "title": f"🎉 Harvest Ready: {crop_name}",
+                "message": f"{crop_name} produced by {farmer_name} is now ready for collection and dispatch.",
+                "type": "harvest_ready",
+                "created_at": datetime.utcnow().isoformat()
+            })
+    except Exception as e:
+        logger.error(f"Error in dispatch_crop_production_update_events: {e}")
+
+
+async def dispatch_bulk_order_lifecycle_email(order: dict, event_type: str):
+    """Dispatches bulk order placement, acceptance, rejection, and completion emails."""
+    try:
+        customer_email = order.get("customer_email") or order.get("consumer_email")
+        customer_id = order.get("customer_id") or order.get("consumer_id")
+        farmer_email = order.get("farmer_email")
+        farmer_id = order.get("farmer_id")
+
+        if not customer_email and customer_id and is_mongo_online:
+            try:
+                p = await profiles_collection.find_one({"id": customer_id}, {"email": 1, "full_name": 1, "_id": 0})
+                if p:
+                    customer_email = p.get("email")
+                    order.setdefault("customer_name", p.get("full_name"))
+            except Exception:
+                pass
+
+        if not farmer_email and farmer_id and is_mongo_online:
+            try:
+                p = await profiles_collection.find_one({"id": farmer_id}, {"email": 1, "full_name": 1, "_id": 0})
+                if p:
+                    farmer_email = p.get("email")
+                    order.setdefault("farmer_name", p.get("full_name"))
+            except Exception:
+                pass
+
+        default_alert = os.getenv("DEFAULT_ALERT_EMAIL", "239x1a3253@gprec.ac.in")
+        if not customer_email:
+            customer_email = default_alert
+        if not farmer_email:
+            farmer_email = default_alert
+
+        # Dispatch to buyer
+        if customer_email and "@" in customer_email:
+            await send_bulk_order_event_email(customer_email, order, event_type=event_type, recipient_role="consumer")
+
+        # Dispatch to farmer
+        if farmer_email and "@" in farmer_email and farmer_email != customer_email:
+            await send_bulk_order_event_email(farmer_email, order, event_type=event_type, recipient_role="farmer")
+
+        # Live notification center broadcast
+        crop_name = order.get("crop_name", "Bulk Crop")
+        order_id = str(order.get("id", ""))[:8]
+        await manager.broadcast("notifications", "INSERT", {
+            "id": f"notif-bo-{uuid.uuid4().hex[:8]}",
+            "title": f"📦 Bulk Order #{order_id} {event_type.upper()}",
+            "message": f"Bulk contract for {order.get('quantity_required', order.get('quantity', ''))} {order.get('unit', 'kg')} of {crop_name} is {event_type}.",
+            "type": "bulk_order_event",
+            "created_at": datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Error in dispatch_bulk_order_lifecycle_email: {e}")
+
+
 @router.post("/api/auth/register")
 async def register(req: RegisterRequest):
     existing = None
@@ -1201,6 +1452,10 @@ async def create_record(table: str, request: Request):
     # Real-time automated email notifications
     if table == "orders":
         asyncio.create_task(dispatch_automated_order_email(record_copy, record_copy.get("status", "pending")))
+    elif table == "crops":
+        asyncio.create_task(dispatch_crop_production_events(record_copy, event="created"))
+    elif table == "bulk_orders":
+        asyncio.create_task(dispatch_bulk_order_lifecycle_email(record_copy, event_type="placed"))
 
     try:
         await cache_service.delete_namespace(table)
@@ -1276,6 +1531,26 @@ async def update_record(table: str, request: Request):
 
     if query_params:
         target_id = query_params.get("id")
+
+        target_crop = None
+        if table == "crops":
+            if is_mongo_online:
+                try:
+                    target_crop = await db.get_collection("crops").find_one(query_params, {"_id": 0})
+                except Exception:
+                    pass
+            if not target_crop:
+                target_crop = next((r for r in IN_MEMORY_TABLES.get("crops", []) if all(str(r.get(k)) == str(v) for k, v in query_params.items())), None)
+
+        target_bulk = None
+        if table == "bulk_orders":
+            if is_mongo_online:
+                try:
+                    target_bulk = await db.get_collection("bulk_orders").find_one(query_params, {"_id": 0})
+                except Exception:
+                    pass
+            if not target_bulk:
+                target_bulk = next((r for r in IN_MEMORY_TABLES.get("bulk_orders", []) if all(str(r.get(k)) == str(v) for k, v in query_params.items())), None)
 
         # 3. Synchronize with corresponding crop / yield record
         if table == "orders" and "status" in data:
@@ -1369,11 +1644,17 @@ async def update_record(table: str, request: Request):
                     except Exception:
                         pass
 
-                    # Automated Real-time Order Status Email Dispatch
+                    # Automated Real-time Order & Crop Production Email Dispatch
                     if table == "orders" and "status" in data:
                         merged_info = dict(target_order or (results[0] if results else query_params))
                         merged_info.update(data)
                         asyncio.create_task(dispatch_automated_order_email(merged_info, data["status"]))
+                    elif table == "crops" and target_crop:
+                        asyncio.create_task(dispatch_crop_production_update_events(target_crop, data))
+                    elif table == "bulk_orders" and "status" in data:
+                        merged_info = dict(target_bulk or (results[0] if results else query_params))
+                        merged_info.update(data)
+                        asyncio.create_task(dispatch_bulk_order_lifecycle_email(merged_info, data["status"]))
 
                     return results
             except HTTPException:
@@ -1428,11 +1709,17 @@ async def update_record(table: str, request: Request):
         except Exception:
             pass
 
-        # Automated Real-time Order Status Email Dispatch (Fallback path)
+        # Automated Real-time Order & Crop Production Email Dispatch (Fallback path)
         if table == "orders" and "status" in data:
             merged_info = dict(target_order or (updated_items[0] if updated_items else query_params))
             merged_info.update(data)
             asyncio.create_task(dispatch_automated_order_email(merged_info, data["status"]))
+        elif table == "crops" and target_crop:
+            asyncio.create_task(dispatch_crop_production_update_events(target_crop, data))
+        elif table == "bulk_orders" and "status" in data:
+            merged_info = dict(target_bulk or (updated_items[0] if updated_items else query_params))
+            merged_info.update(data)
+            asyncio.create_task(dispatch_bulk_order_lifecycle_email(merged_info, data["status"]))
 
         return updated_items
     return []

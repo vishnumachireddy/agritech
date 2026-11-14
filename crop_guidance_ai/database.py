@@ -72,6 +72,8 @@ farmer_commitments_collection = db.get_collection("farmer_commitments")
 farmer_details_collection = db.get_collection("farmer_details")
 government_schemes_collection = db.get_collection("government_schemes")
 crop_traceability_collection = db.get_collection("crop_traceability")
+email_logs_collection = db.get_collection("email_logs")
+weather_alert_logs_collection = db.get_collection("weather_alert_logs")
 
 async def ensure_database_indexes():
     """Ensure all required production indexes exist on startup."""

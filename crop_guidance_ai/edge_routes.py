@@ -421,6 +421,275 @@ async def automated_defense_scan(req: AutomatedDefenseScanRequest):
         "temperature": temp
     }
 
+
+# ==============================================================================
+# PROACTIVE WEATHER MONITORING DAEMON & AUTOMATED ALERTS
+# ==============================================================================
+
+async def execute_proactive_weather_monitoring(force_check: bool = False) -> dict:
+    """
+    Proactively monitors hyper-local weather conditions across all registered farmers' agricultural locations.
+    Detects heavy rainfall, thunderstorms, strong winds, heatwaves, or extreme temperatures.
+    Dispatches automated email alerts and in-app notifications with persistent deduplication.
+    """
+    from database import db, profiles_collection, weather_alert_logs_collection, is_mongo_online
+    import logging
+    logger = logging.getLogger("uvicorn")
+
+    scanned_farmers = 0
+    alerts_triggered = 0
+    alerts_suppressed = 0
+    dispatched_details = []
+
+    # 1. Fetch registered farmers
+    farmers_to_scan = []
+    if is_mongo_online:
+        try:
+            cursor = profiles_collection.find({"role": "farmer"}, {"id": 1, "email": 1, "full_name": 1, "region": 1, "location": 1, "_id": 0})
+            farmers_to_scan = await cursor.to_list(length=200)
+        except Exception as e:
+            logger.warning(f"Error querying farmers for proactive weather scan: {e}")
+
+    # Fallback to demo farmer if none returned or DB offline
+    if not farmers_to_scan:
+        farmers_to_scan = [
+            {
+                "id": "farmer-demo-1",
+                "email": os.getenv("DEFAULT_ALERT_EMAIL", "239x1a3253@gprec.ac.in"),
+                "full_name": "Ramesh Kumar",
+                "region": "Kurnool, Andhra Pradesh",
+                "lat": 15.8281,
+                "lon": 78.0373
+            }
+        ]
+
+    for farmer in farmers_to_scan:
+        farmer_email = farmer.get("email")
+        if not farmer_email or "@" not in farmer_email:
+            continue
+
+        scanned_farmers += 1
+        farmer_id = farmer.get("id", str(uuid.uuid4()))
+        farmer_name = farmer.get("full_name", "Farmer")
+        location_name = farmer.get("region") or farmer.get("location") or "Andhra Pradesh"
+        lat = farmer.get("lat")
+        lon = farmer.get("lon")
+
+        try:
+            # Query weather for this farmer's specific location
+            weather_payload = await get_weather(WeatherRequest(city=location_name, lat=lat, lon=lon))
+            current = weather_payload.get("current", {})
+            temp = float(current.get("temperature", 30.0))
+            wind = float(current.get("wind_speed", 10.0))
+            condition = str(current.get("condition", "Clear"))
+            weather_code = int(current.get("weather_code", 0))
+
+            forecast = weather_payload.get("forecast", [])
+            max_rain = 0.0
+            has_forecast_thunder = False
+            max_forecast_temp = temp
+
+            for day in forecast[:3]:
+                rain_val = day.get("precipitation") or day.get("rain_mm") or 0.0
+                if isinstance(rain_val, (int, float)) and rain_val > max_rain:
+                    max_rain = float(rain_val)
+                cond_text = str(day.get("condition", "")).lower()
+                if "thunder" in cond_text or day.get("weather_code") in (95, 96, 99):
+                    has_forecast_thunder = True
+                f_temp = float(day.get("temperature", 30.0))
+                if f_temp > max_forecast_temp:
+                    max_forecast_temp = f_temp
+
+            # Evaluate adverse conditions
+            alert_type = None
+            alert_title = None
+            severity = "WARNING"
+            advisory = ""
+
+            # Check 1: Thunderstorm
+            if has_forecast_thunder or (200 <= weather_code < 300) or ("thunder" in condition.lower()):
+                alert_type = "thunderstorm"
+                alert_title = "Severe Thunderstorm Warning"
+                severity = "CRITICAL"
+                advisory = (
+                    "Severe thunderstorms forecast in your farming area. Discontinue precision drone and pump spraying immediately. "
+                    "Disconnect electrical motor pumps and shelter farm equipment and livestock in secure dry sheds."
+                )
+            # Check 2: Heavy Rainfall (>15 mm)
+            elif max_rain > 15.0 or "heavy rain" in condition.lower():
+                alert_type = "heavy_rainfall"
+                alert_title = f"Heavy Rainfall Advisory ({max_rain:.1f} mm Expected)"
+                severity = "CRITICAL" if max_rain > 30.0 else "WARNING"
+                advisory = (
+                    f"Forecast predicts significant precipitation ({max_rain:.1f} mm). Ensure all field drainage canals, trenches, "
+                    "and bunds are clear to avoid root zone waterlogging. Halt nitrogenous and soluble fertilizer broadcasting to prevent runoff."
+                )
+            # Check 3: Strong Winds (>28 km/h)
+            elif wind > 28.0:
+                alert_type = "strong_winds"
+                alert_title = f"High Wind Warning ({wind:.1f} km/h)"
+                severity = "WARNING"
+                advisory = (
+                    f"Strong wind gusts of {wind:.1f} km/h detected. Strictly avoid aerial drone spraying to prevent chemical drift. "
+                    "Provide physical staking or earth-mounding support for standing crops (banana, maize, papaya) to avoid lodging."
+                )
+            # Check 4: Extreme Heat / Heatwave (>38°C)
+            elif temp > 38.0 or max_forecast_temp > 40.0:
+                alert_type = "heatwave"
+                alert_title = f"Extreme Heat & Thermal Stress Advisory ({max(temp, max_forecast_temp):.1f}°C)"
+                severity = "WARNING"
+                advisory = (
+                    f"High ambient temperatures reaching {max(temp, max_forecast_temp):.1f}°C. Schedule light drip irrigation during early "
+                    "morning (05:00 - 08:00 AM) or post-sunset to prevent moisture shock and flower/fruit drop. Retain mulch layer on topsoil."
+                )
+            # Check 5: Extreme Cold / Frost (<6°C)
+            elif temp < 6.0:
+                alert_type = "frost"
+                alert_title = f"Frost & Cold Temperature Warning ({temp:.1f}°C)"
+                severity = "WARNING"
+                advisory = (
+                    f"Cold front with low temperatures of {temp:.1f}°C. Irrigate standing plots lightly in the evening to maintain higher soil heat "
+                    "capacity. Protect vulnerable young horticultural seedlings with low-tunnel plastic or straw mulch."
+                )
+
+            # If force_check is enabled and conditions are normal, generate an advisory
+            if not alert_type and force_check:
+                alert_type = "proactive_advisory"
+                alert_title = "Proactive Agro-Meteorological Advisory"
+                severity = "INFO"
+                advisory = (
+                    f"Current conditions in {location_name}: {condition}, {temp:.1f}°C, Wind {wind:.1f} km/h. "
+                    "Weather is favorable for standard intercultural operations and precision drone spraying."
+                )
+
+            if alert_type:
+                # Persistent deduplication check in weather_alert_logs
+                dedup_key = f"weather_proactive_{farmer_id}_{alert_type}_{datetime.date.today().isoformat()}"
+                is_duplicate = False
+
+                if not force_check and is_mongo_online:
+                    try:
+                        cutoff_18h = datetime.datetime.utcnow() - datetime.timedelta(hours=18)
+                        existing_log = await weather_alert_logs_collection.find_one({
+                            "farmer_id": farmer_id,
+                            "alert_type": alert_type,
+                            "created_at": {"$gte": cutoff_18h}
+                        })
+                        if existing_log:
+                            is_duplicate = True
+                    except Exception as e:
+                        logger.warning(f"Weather alert dedup check error: {e}")
+
+                if is_duplicate:
+                    alerts_suppressed += 1
+                    logger.info(f"[WEATHER PROACTIVE] Suppressed duplicate {alert_type} alert for {farmer_email}")
+                    continue
+
+                # Dispatch automated email via Brevo
+                email_result = await send_weather_alert_email(
+                    to_email=farmer_email,
+                    farmer_name=farmer_name,
+                    location_name=location_name,
+                    alert_title=alert_title,
+                    alert_type=alert_type,
+                    severity=severity,
+                    current_temp=temp,
+                    wind_speed=wind,
+                    precipitation=max_rain,
+                    condition=condition,
+                    advisory=advisory
+                )
+
+                # Record in persistent weather alert logs
+                if is_mongo_online:
+                    try:
+                        await weather_alert_logs_collection.insert_one({
+                            "farmer_id": farmer_id,
+                            "farmer_email": farmer_email,
+                            "farmer_name": farmer_name,
+                            "location": location_name,
+                            "alert_title": alert_title,
+                            "alert_type": alert_type,
+                            "severity": severity,
+                            "temp": temp,
+                            "wind_speed": wind,
+                            "precipitation": max_rain,
+                            "condition": condition,
+                            "dispatch_mode": email_result.get("mode", "unknown"),
+                            "status": email_result.get("status", "unknown"),
+                            "created_at": datetime.datetime.utcnow()
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to record weather alert log: {e}")
+
+                # Real-time WebSocket broadcast to notification center
+                try:
+                    from api_routes import manager
+                    await manager.broadcast("notifications", "INSERT", {
+                        "id": f"notif-w-{uuid.uuid4().hex[:8]}",
+                        "user_id": farmer_id,
+                        "title": alert_title,
+                        "message": advisory,
+                        "type": "weather_alert",
+                        "severity": severity,
+                        "created_at": datetime.datetime.utcnow().isoformat()
+                    })
+                except Exception:
+                    pass
+
+                alerts_triggered += 1
+                dispatched_details.append({
+                    "farmer_email": farmer_email,
+                    "location": location_name,
+                    "alert_title": alert_title,
+                    "status": email_result.get("status")
+                })
+        except Exception as e:
+            logger.error(f"Error scanning weather for farmer {farmer_email}: {e}")
+
+    return {
+        "scanned_farmers": scanned_farmers,
+        "alerts_triggered": alerts_triggered,
+        "alerts_suppressed": alerts_suppressed,
+        "dispatched_details": dispatched_details,
+        "timestamp": datetime.datetime.utcnow().isoformat()
+    }
+
+
+async def run_proactive_weather_daemon():
+    """Background daemon running continuously to monitor weather for farmers."""
+    import logging
+    logger = logging.getLogger("uvicorn")
+    logger.info("[WEATHER DAEMON] Proactive weather monitoring daemon initialized.")
+    # Wait 15 seconds after startup before the first run
+    await asyncio.sleep(15)
+    while True:
+        try:
+            logger.info("[WEATHER DAEMON] Executing periodic proactive weather scan...")
+            summary = await execute_proactive_weather_monitoring(force_check=False)
+            logger.info(f"[WEATHER DAEMON] Scan results: triggered={summary.get('alerts_triggered')}, suppressed={summary.get('alerts_suppressed')}")
+        except Exception as e:
+            logger.error(f"[WEATHER DAEMON] Exception in daemon loop: {e}")
+        # Sleep for 45 minutes between runs
+        await asyncio.sleep(45 * 60)
+
+
+class ProactiveMonitoringTriggerRequest(BaseModel):
+    force_check: Optional[bool] = False
+
+@weather_router.post("/api/weather/run-proactive-monitoring")
+async def trigger_proactive_monitoring(req: Optional[ProactiveMonitoringTriggerRequest] = None):
+    """
+    Administrative / test endpoint to trigger a proactive weather scan across all registered farmers.
+    """
+    force = req.force_check if req else False
+    summary = await execute_proactive_weather_monitoring(force_check=force)
+    return {
+        "success": True,
+        "message": "Proactive weather monitoring executed successfully.",
+        "summary": summary
+    }
+
 class FertilizerChatRequest(BaseModel):
     message: str
 

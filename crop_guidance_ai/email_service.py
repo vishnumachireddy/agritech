@@ -420,11 +420,58 @@ def build_drone_booking_email_html(booking: dict, new_status: str) -> str:
 </body>
 </html>"""
 
+# ==============================================================================
+# 3.5. DEDUPLICATION & LOGGING INFRASTRUCTURE
+# ==============================================================================
+
+async def is_email_deduped(event_key: str, recipient: str, cooldown_hours: int = 12) -> bool:
+    """Check MongoDB email_logs to prevent duplicate emails for the same event."""
+    try:
+        from database import db, is_mongo_online
+        if is_mongo_online:
+            coll = db.get_collection("email_logs")
+            cutoff = datetime.datetime.utcnow() - datetime.timedelta(hours=cooldown_hours)
+            existing = await coll.find_one({
+                "event_key": event_key,
+                "recipient": recipient.strip().lower(),
+                "created_at": {"$gte": cutoff}
+            })
+            if existing:
+                logger.info(f"[EMAIL DEDUP] Suppressed duplicate email to {recipient} for key: {event_key}")
+                return True
+    except Exception as e:
+        logger.warning(f"Email dedup check warning: {e}")
+    return False
+
+async def record_email_dispatch(event_key: str, recipient: str, subject: str, mode: str):
+    """Record dispatched email for persistent audit and deduplication."""
+    try:
+        from database import db, is_mongo_online
+        if is_mongo_online:
+            coll = db.get_collection("email_logs")
+            await coll.insert_one({
+                "event_key": event_key,
+                "recipient": recipient.strip().lower(),
+                "subject": subject,
+                "mode": mode,
+                "created_at": datetime.datetime.utcnow()
+            })
+    except Exception as e:
+        logger.warning(f"Failed to record email dispatch log: {e}")
+
 async def send_drone_booking_email(to_email: str, booking: dict, new_status: str) -> dict:
-    booking_id = booking.get("id", "N/A")[:8]
-    subject = f"🚁 [AgriSmart Drone] Booking #{booking_id} Status: {new_status.replace('_', ' ').upper()}"
+    booking_id = booking.get("id") or booking.get("booking_id") or "N/A"
+    clean_id = str(booking_id)[:12]
+    dedup_key = f"spray_{clean_id}_{new_status.lower()}_{to_email.strip().lower()}"
+    if await is_email_deduped(dedup_key, to_email, cooldown_hours=4):
+        return {"status": "deduplicated", "delivered": False, "mode": "suppressed", "recipient": to_email}
+
+    subject = f"🚁 [AgriSmart Spray] Booking #{clean_id[:8]} Status: {new_status.replace('_', ' ').upper()}"
     html = build_drone_booking_email_html(booking, new_status)
-    return await _dispatch_email(to_email, subject, html)
+    res = await _dispatch_email(to_email, subject, html)
+    if res.get("status") == "success":
+        await record_email_dispatch(dedup_key, to_email, subject, res.get("mode", "unknown"))
+    return res
 
 # ==============================================================================
 # 4. WEATHER DEFENSE ALERTS (REAL-TIME AUTOMATION)
@@ -519,8 +566,279 @@ async def send_weather_alert_email(
     advisory: str = "Rainfall and wind changes detected. Ensure drainage channels are clear and halt chemical spraying."
 ) -> dict:
     subject = f"⚠️ [AgriSmart Alert] {alert_title} in {location_name}"
+    dedup_key = f"weather_{location_name.strip().lower()}_{alert_title.strip().lower()}_{datetime.date.today().isoformat()}"
+    if await is_email_deduped(dedup_key, to_email, cooldown_hours=18):
+        return {"status": "deduplicated", "delivered": False, "mode": "suppressed", "recipient": to_email}
+
     html = build_weather_alert_html(
         farmer_name, location_name, alert_title, alert_type, severity,
         current_temp, wind_speed, precipitation, condition, advisory, to_email
     )
-    return await _dispatch_email(to_email, subject, html)
+    res = await _dispatch_email(to_email, subject, html)
+    if res.get("status") == "success":
+        await record_email_dispatch(dedup_key, to_email, subject, res.get("mode", "unknown"))
+    return res
+
+
+
+# ==============================================================================
+# 5. BULK PRODUCTION & HARVEST MILESTONE EMAIL TEMPLATES
+# ==============================================================================
+
+def build_production_update_html(
+    crop: dict,
+    old_qty: float,
+    new_qty: float,
+    recipient_name: str,
+    is_farmer: bool
+) -> str:
+    crop_name = crop.get("name") or crop.get("crop_name", "Agricultural Produce")
+    variety = crop.get("variety", "Standard")
+    farmer_name = crop.get("farmer_name", "Verified Producer")
+    unit = crop.get("unit", "kg")
+    harvest_date = crop.get("expected_harvest_date") or crop.get("harvest_date") or "Upcoming"
+    location = crop.get("location") or crop.get("region", "Registered Farm Area")
+    price = crop.get("price") or crop.get("expected_price", 0)
+    now_str = datetime.datetime.utcnow().strftime("%d %b %Y, %I:%M %p UTC")
+
+    headline = "Your Production Availability Updated" if is_farmer else f"Production Update: {crop_name} Availability Changed"
+    subhead = "Your crop quantity update has been recorded and synchronized with the public marketplace." if is_farmer else f"Farmer {farmer_name} has updated the available production quantity for {crop_name}."
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>{headline}</title></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+  <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+    <div style="background: linear-gradient(135deg, #15803d 0%, #166534 100%); padding: 24px 32px; color: #ffffff; text-align: center;">
+      <div style="font-size: 28px; margin-bottom: 4px;">🌾</div>
+      <h2 style="margin: 0; font-size: 20px; font-weight: 700;">{headline}</h2>
+      <p style="margin: 4px 0 0 0; font-size: 13px; opacity: 0.9;">AgroSmart AI • Bulk Production Progress Network</p>
+    </div>
+    <div style="padding: 24px 32px;">
+      <p style="font-size: 14px; margin: 0 0 16px 0;">Hello <strong>{recipient_name}</strong>,</p>
+      <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 20px 0;">{subhead}</p>
+
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; width: 45%;">Crop Name:</td>
+            <td style="padding: 8px 0; font-weight: 600; color: #0f172a;">{crop_name} ({variety})</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #64748b;">Producing Farmer:</td>
+            <td style="padding: 8px 0; font-weight: 600; color: #0f172a;">{farmer_name}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #64748b;">Previous Quantity:</td>
+            <td style="padding: 8px 0; color: #64748b; text-decoration: line-through;">{old_qty} {unit}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #166534; font-weight: 700;">Available Now:</td>
+            <td style="padding: 8px 0; font-weight: 700; color: #166534; font-size: 16px;">{new_qty} {unit}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #64748b;">Expected Harvest Date:</td>
+            <td style="padding: 8px 0; font-weight: 600; color: #0f172a;">{harvest_date}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #64748b;">Farm Location:</td>
+            <td style="padding: 8px 0; font-weight: 600; color: #0f172a;">{location}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #64748b;">Expected Price:</td>
+            <td style="padding: 8px 0; font-weight: 700; color: #0f172a;">₹{price} / {unit}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 14px 18px; margin-bottom: 24px; font-size: 12px; color: #15803d; line-height: 1.5;">
+        💡 <strong>Procurement Note:</strong> You can place bulk contract orders or reserve allocations directly through your AgroSmart AI dashboard before harvest.
+      </div>
+    </div>
+    <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 32px; font-size: 11px; color: #94a3b8; text-align: center;">
+      AgroSmart AI Marketplace • Automated Milestone Notification • {now_str}
+    </div>
+  </div>
+</body>
+</html>"""
+
+def build_new_production_availability_html(crop: dict, recipient_name: str) -> str:
+    crop_name = crop.get("name") or crop.get("crop_name", "Produce")
+    farmer_name = crop.get("farmer_name", "Verified Producer")
+    qty = crop.get("quantity") or crop.get("available_quantity", 0)
+    unit = crop.get("unit", "kg")
+    price = crop.get("price") or crop.get("expected_price", 0)
+    harvest_date = crop.get("expected_harvest_date") or crop.get("harvest_date") or "Upcoming"
+    location = crop.get("location") or crop.get("region", "Andhra Pradesh")
+    now_str = datetime.datetime.utcnow().strftime("%d %b %Y, %I:%M %p UTC")
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>New Bulk Production Available</title></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+  <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+    <div style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); padding: 24px 32px; color: #ffffff; text-align: center;">
+      <div style="font-size: 28px; margin-bottom: 4px;">🌱</div>
+      <h2 style="margin: 0; font-size: 20px; font-weight: 700;">New Harvest Produce Available</h2>
+      <p style="margin: 4px 0 0 0; font-size: 13px; opacity: 0.9;">AgroSmart AI Direct Farmer-to-Buyer Network</p>
+    </div>
+    <div style="padding: 24px 32px;">
+      <p style="font-size: 14px; margin: 0 0 16px 0;">Hello <strong>{recipient_name}</strong>,</p>
+      <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 20px 0;">A verified local farmer has listed a new bulk production batch for <strong>{crop_name}</strong>.</p>
+      
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px; font-size: 13px;">
+        <p style="margin: 6px 0;"><strong>Farmer:</strong> {farmer_name}</p>
+        <p style="margin: 6px 0;"><strong>Available Quantity:</strong> {qty} {unit}</p>
+        <p style="margin: 6px 0;"><strong>Target Harvest Date:</strong> {harvest_date}</p>
+        <p style="margin: 6px 0;"><strong>Location:</strong> {location}</p>
+        <p style="margin: 6px 0;"><strong>Expected Price:</strong> ₹{price} / {unit}</p>
+      </div>
+    </div>
+    <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; font-size: 11px; color: #94a3b8; text-align: center;">
+      AgroSmart AI • {now_str}
+    </div>
+  </div>
+</body>
+</html>"""
+
+def build_harvest_ready_html(crop: dict, recipient_name: str) -> str:
+    crop_name = crop.get("name") or crop.get("crop_name", "Produce")
+    farmer_name = crop.get("farmer_name", "Verified Producer")
+    qty = crop.get("quantity") or crop.get("available_quantity", 0)
+    unit = crop.get("unit", "kg")
+    location = crop.get("location") or crop.get("region", "Farm Location")
+    now_str = datetime.datetime.utcnow().strftime("%d %b %Y, %I:%M %p UTC")
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Crop Harvest Ready!</title></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+  <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+    <div style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); padding: 24px 32px; color: #ffffff; text-align: center;">
+      <div style="font-size: 32px; margin-bottom: 4px;">🎉</div>
+      <h2 style="margin: 0; font-size: 20px; font-weight: 700;">Harvest Ready: {crop_name}</h2>
+      <p style="margin: 4px 0 0 0; font-size: 13px; opacity: 0.9;">Ready for Pickup, Packing & Logistics Dispatch</p>
+    </div>
+    <div style="padding: 24px 32px;">
+      <p style="font-size: 14px; margin: 0 0 16px 0;">Hello <strong>{recipient_name}</strong>,</p>
+      <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 20px 0;">
+        Great news! Farmer <strong>{farmer_name}</strong> has marked their <strong>{crop_name}</strong> crop as <strong>HARVEST READY</strong> ({qty} {unit} available in {location}).
+      </p>
+      <p style="font-size: 13px; color: #475569;">Please log in to your AgroSmart portal to confirm procurement delivery or initiate collection logistics.</p>
+    </div>
+    <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; font-size: 11px; color: #94a3b8; text-align: center;">
+      AgroSmart AI • Direct Farmer-to-Consumer Logistics • {now_str}
+    </div>
+  </div>
+</body>
+</html>"""
+
+def build_bulk_order_event_html(order: dict, event_type: str, recipient_role: str) -> str:
+    crop_name = order.get("crop_name", "Produce")
+    qty = order.get("quantity") or order.get("quantity_required", 0)
+    unit = order.get("unit", "kg")
+    order_id = str(order.get("id", "N/A"))[:8]
+    farmer_name = order.get("farmer_name", "Farmer")
+    customer_name = order.get("customer_name") or order.get("consumer_name", "Buyer")
+    now_str = datetime.datetime.utcnow().strftime("%d %b %Y, %I:%M %p UTC")
+
+    titles = {
+        "placed": "📦 New Bulk Order Placed",
+        "accepted": "✅ Bulk Order Accepted by Farmer",
+        "rejected": "❌ Bulk Order Status Update",
+        "completed": "🎉 Bulk Order Completed & Delivered",
+        "cancelled": "⚠️ Bulk Order Cancelled"
+    }
+    title = titles.get(event_type.lower(), f"Bulk Order #{order_id} Update")
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>{title}</title></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+  <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+    <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 24px 32px; color: #ffffff; text-align: center;">
+      <h2 style="margin: 0; font-size: 20px; font-weight: 700;">{title}</h2>
+      <p style="margin: 4px 0 0 0; font-size: 13px; opacity: 0.85;">Order #{order_id} • AgroSmart AI Bulk Network</p>
+    </div>
+    <div style="padding: 24px 32px;">
+      <p style="font-size: 14px; margin: 0 0 16px 0;">Hello <strong>{customer_name if recipient_role == 'consumer' else farmer_name}</strong>,</p>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; font-size: 13px;">
+        <p style="margin: 6px 0;"><strong>Crop:</strong> {crop_name}</p>
+        <p style="margin: 6px 0;"><strong>Quantity:</strong> {qty} {unit}</p>
+        <p style="margin: 6px 0;"><strong>Farmer:</strong> {farmer_name}</p>
+        <p style="margin: 6px 0;"><strong>Buyer:</strong> {customer_name}</p>
+      </div>
+    </div>
+    <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; font-size: 11px; color: #94a3b8; text-align: center;">
+      AgroSmart AI • {now_str}
+    </div>
+  </div>
+</body>
+</html>"""
+
+
+# ==============================================================================
+# 7. ASYNC NOTIFICATION DISPATCHERS WITH DEDUPLICATION
+# ==============================================================================
+
+async def send_production_milestone_email(
+    to_email: str,
+    crop: dict,
+    old_qty: float,
+    new_qty: float,
+    recipient_name: str = "AgriSmart User",
+    is_farmer: bool = False
+) -> dict:
+    crop_id = crop.get("id", "generic")
+    crop_name = crop.get("name") or crop.get("crop_name", "Produce")
+    dedup_key = f"prod_update_{crop_id}_{new_qty}_{to_email.strip().lower()}"
+    if await is_email_deduped(dedup_key, to_email, cooldown_hours=6):
+        return {"status": "deduplicated", "delivered": False, "mode": "suppressed"}
+
+    subject = f"🌾 [Production Update] {crop_name} Availability Updated: {new_qty} {crop.get('unit', 'kg')}"
+    html = build_production_update_html(crop, old_qty, new_qty, recipient_name, is_farmer)
+    res = await _dispatch_email(to_email, subject, html)
+    if res.get("status") == "success":
+        await record_email_dispatch(dedup_key, to_email, subject, res.get("mode", "unknown"))
+    return res
+
+async def send_new_production_availability_email(to_email: str, crop: dict, recipient_name: str = "Valued Buyer") -> dict:
+    crop_id = crop.get("id", "generic")
+    crop_name = crop.get("name") or crop.get("crop_name", "Produce")
+    dedup_key = f"new_prod_{crop_id}_{to_email.strip().lower()}"
+    if await is_email_deduped(dedup_key, to_email, cooldown_hours=24):
+        return {"status": "deduplicated", "delivered": False, "mode": "suppressed"}
+
+    subject = f"🌱 [New Produce Listing] {crop_name} is now available for bulk ordering"
+    html = build_new_production_availability_html(crop, recipient_name)
+    res = await _dispatch_email(to_email, subject, html)
+    if res.get("status") == "success":
+        await record_email_dispatch(dedup_key, to_email, subject, res.get("mode", "unknown"))
+    return res
+
+async def send_harvest_ready_email(to_email: str, crop: dict, recipient_name: str = "Valued Buyer") -> dict:
+    crop_id = crop.get("id", "generic")
+    crop_name = crop.get("name") or crop.get("crop_name", "Produce")
+    dedup_key = f"harvest_ready_{crop_id}_{to_email.strip().lower()}"
+    if await is_email_deduped(dedup_key, to_email, cooldown_hours=24):
+        return {"status": "deduplicated", "delivered": False, "mode": "suppressed"}
+
+    subject = f"🎉 [Harvest Ready] {crop_name} is now ready for collection and dispatch"
+    html = build_harvest_ready_html(crop, recipient_name)
+    res = await _dispatch_email(to_email, subject, html)
+    if res.get("status") == "success":
+        await record_email_dispatch(dedup_key, to_email, subject, res.get("mode", "unknown"))
+    return res
+
+async def send_bulk_order_event_email(to_email: str, order: dict, event_type: str, recipient_role: str = "consumer") -> dict:
+    order_id = order.get("id", "generic")
+    dedup_key = f"bulk_event_{order_id}_{event_type}_{to_email.strip().lower()}"
+    if await is_email_deduped(dedup_key, to_email, cooldown_hours=2):
+        return {"status": "deduplicated", "delivered": False, "mode": "suppressed"}
+
+    subject = f"📦 [AgriSmart Bulk] Order #{str(order_id)[:8]} Status: {event_type.upper()}"
+    html = build_bulk_order_event_html(order, event_type, recipient_role)
+    res = await _dispatch_email(to_email, subject, html)
+    if res.get("status") == "success":
+        await record_email_dispatch(dedup_key, to_email, subject, res.get("mode", "unknown"))
+    return res

@@ -110,7 +110,7 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
 
 # Import and mount sub-routers
 from api_routes import router as api_router, manager
-from edge_routes import weather_router
+from edge_routes import weather_router, run_proactive_weather_daemon
 from spray_routes import spray_router
 from cache_service import cache_service
 from database import ensure_database_indexes, is_mongo_online
@@ -179,6 +179,9 @@ async def startup_event():
                 logger.error(f"Failed to load dataset {d}: {e}")
         else:
             logger.debug(f"Dataset file {d} not found in {DATASETS_DIR}")
+
+    # 5. Launch proactive weather monitoring background daemon
+    asyncio.create_task(run_proactive_weather_daemon())
 
     logger.info("AgroSmart AI Backend startup sequence complete.")
 

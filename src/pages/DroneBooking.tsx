@@ -43,18 +43,33 @@ interface SprayBooking {
   created_at: string;
 }
 
+const getTodayKolkataString = () => {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    });
+    return formatter.format(new Date());
+  } catch {
+    return new Date().toISOString().split("T")[0];
+  }
+};
+
 const DroneBooking = () => {
   const { user } = useAuth();
+  const todayDateStr = getTodayKolkataString();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [bookings, setBookings] = useState<SprayBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Form Fields
+  // Form Fields - Default to today or tomorrow
   const [sprayType, setSprayType] = useState("Drone Spray");
   const [crop, setCrop] = useState("Organic Sona Masoori Rice");
   const [fieldArea, setFieldArea] = useState("3.5");
-  const [bookingDate, setBookingDate] = useState(new Date(Date.now() + 86400000).toISOString().split("T")[0]);
+  const [bookingDate, setBookingDate] = useState(todayDateStr);
   const [preferredTime, setPreferredTime] = useState("Morning (07:00 AM - 10:00 AM)");
   const [contactNumber, setContactNumber] = useState("+91 9876543210");
   const [fieldLocation, setFieldLocation] = useState("Kurnool, Andhra Pradesh");
@@ -168,6 +183,10 @@ const DroneBooking = () => {
     }
     if (!contactNumber || contactNumber.length < 10) {
       toast.error("Please provide a valid contact number");
+      return;
+    }
+    if (!bookingDate || bookingDate < todayDateStr) {
+      toast.error(`Booking date cannot be in the past. Please select today (${todayDateStr}) or a future date.`);
       return;
     }
 
@@ -325,9 +344,13 @@ const DroneBooking = () => {
                 <Input
                   id="booking_date"
                   type="date"
+                  min={todayDateStr}
                   value={bookingDate}
                   onChange={(e) => setBookingDate(e.target.value)}
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Valid from today ({todayDateStr}) onwards. Past dates are disabled.
+                </p>
               </div>
             </div>
 
