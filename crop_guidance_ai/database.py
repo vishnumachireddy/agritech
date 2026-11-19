@@ -123,6 +123,10 @@ async def ensure_database_indexes():
         # 8. Schemes
         await government_schemes_collection.create_index("category")
 
+        # 9. Email Logs (Audit & Deduplication)
+        await email_logs_collection.create_index([("event_key", pymongo.ASCENDING), ("recipient", pymongo.ASCENDING)])
+        await email_logs_collection.create_index("created_at")
+
         logger.info("MongoDB indexes verified and ready.")
     except Exception as e:
         mark_mongo_offline()

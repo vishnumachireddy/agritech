@@ -597,15 +597,19 @@ async def dispatch_automated_order_email(order: dict, new_status: str):
         if not customer_email and customer_id:
             if is_mongo_online:
                 try:
-                    p = await profiles_collection.find_one({"id": customer_id}, {"email": 1, "_id": 0})
+                    p = await profiles_collection.find_one({"id": customer_id}, {"email": 1, "full_name": 1, "_id": 0})
                     if p:
                         customer_email = p.get("email")
+                        if not order.get("customer_name") and p.get("full_name"):
+                            order["customer_name"] = p["full_name"]
                 except Exception:
                     pass
             if not customer_email:
                 p = next((u for u in IN_MEMORY_USERS if u.get("id") == customer_id), None)
                 if p:
                     customer_email = p.get("email")
+                    if not order.get("customer_name") and p.get("full_name"):
+                        order["customer_name"] = p["full_name"]
 
         # Fallback to configured alert email for testing/demo orders
         if not customer_email:
@@ -620,15 +624,19 @@ async def dispatch_automated_order_email(order: dict, new_status: str):
             farmer_email = None
             if is_mongo_online:
                 try:
-                    f = await profiles_collection.find_one({"id": farmer_id}, {"email": 1, "_id": 0})
+                    f = await profiles_collection.find_one({"id": farmer_id}, {"email": 1, "full_name": 1, "_id": 0})
                     if f:
                         farmer_email = f.get("email")
+                        if not order.get("farmer_name") and f.get("full_name"):
+                            order["farmer_name"] = f["full_name"]
                 except Exception:
                     pass
             if not farmer_email:
                 f = next((u for u in IN_MEMORY_USERS if u.get("id") == farmer_id), None)
                 if f:
                     farmer_email = f.get("email")
+                    if not order.get("farmer_name") and f.get("full_name"):
+                        order["farmer_name"] = f["full_name"]
             if farmer_email and "@" in farmer_email and farmer_email != customer_email:
                 await send_order_delivery_email(farmer_email, order, new_status, "farmer")
     except Exception as e:
@@ -1591,6 +1599,21 @@ async def update_record(table: str, request: Request):
                     for c in IN_MEMORY_TABLES.get("crops", []):
                         if (crop_id and str(c.get("id")) == str(crop_id)) or (crop_name and str(c.get("name")) == str(crop_name)):
                             c.update(crop_update)
+
+        # Enrich order & bulk order updates with real database transition timestamps
+        if table in ("orders", "bulk_orders") and "status" in data:
+            st = str(data["status"]).lower()
+            now_iso = datetime.utcnow().isoformat()
+            now_fmt = datetime.utcnow().strftime("%d %b %Y, %I:%M %p UTC")
+            data.setdefault("updated_at", now_iso)
+            if st in ("out_for_delivery", "shipped") and "dispatch_time" not in data:
+                data["dispatch_time"] = now_fmt
+            elif st in ("delivered", "completed") and "delivery_time" not in data:
+                data["delivery_time"] = now_fmt
+            elif st in ("accepted", "confirmed") and "accepted_time" not in data:
+                data["accepted_time"] = now_fmt
+            elif st == "packed" and "packed_time" not in data:
+                data["packed_time"] = now_fmt
 
         if is_mongo_online:
             try:

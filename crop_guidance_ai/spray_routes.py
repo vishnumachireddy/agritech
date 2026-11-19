@@ -323,30 +323,65 @@ async def update_booking_status(booking_id: str, req: UpdateStatusRequest):
             detail=f"Invalid transition from {current_status} to {new_status}. Allowed: {allowed}"
         )
 
-    now = datetime.utcnow().isoformat()
+    now_ist = datetime.now(KOLKATA_TZ).strftime("%d %b %Y, %I:%M %p IST")
+    now_iso = datetime.utcnow().isoformat()
+    
+    update_fields = {
+        "status": new_status,
+        "updated_at": now_iso
+    }
+    if req.notes:
+        update_fields["notes"] = req.notes
+
+    if new_status == "SCHEDULED":
+        update_fields.setdefault("scheduled_at", now_ist)
+    elif new_status == "IN_PROGRESS":
+        update_fields["service_start_time"] = now_ist
+    elif new_status == "COMPLETED":
+        update_fields["completion_time"] = now_ist
+    elif new_status == "CANCELLED":
+        update_fields["cancelled_at"] = now_ist
+    elif new_status == "ACCEPTED":
+        update_fields["accepted_at"] = now_ist
+    elif new_status == "REJECTED":
+        update_fields["rejected_at"] = now_ist
+
     try:
         await drone_bookings_collection.update_many(
             {"$or": [{"id": booking_id}, {"booking_id": booking_id}]},
-            {"$set": {"status": new_status, "updated_at": now}}
+            {"$set": update_fields}
         )
     except Exception as e:
         print(f"MongoDB update warning for status: {e}")
 
-    existing["status"] = new_status
-    existing["updated_at"] = now
+    # Re-fetch authoritative updated document from database
+    refreshed = None
+    try:
+        refreshed = await drone_bookings_collection.find_one(
+            {"$or": [{"id": booking_id}, {"booking_id": booking_id}]},
+            {"_id": 0}
+        )
+    except Exception:
+        refreshed = None
+
+    if not refreshed:
+        existing.update(update_fields)
+        refreshed = existing
+    else:
+        existing.update(refreshed)
 
     # Also update in-memory cache
     for b in IN_MEMORY_BOOKINGS:
         if b.get("id") == booking_id or b.get("booking_id") == booking_id:
-            b["status"] = new_status
-            b["updated_at"] = now
+            b.update(update_fields)
 
     # Broadcast WebSocket update event live
     await manager.broadcast("drone_bookings", "UPDATE")
-    asyncio.create_task(dispatch_automated_drone_email(existing, new_status))
+    # Dispatch accurate event-specific email ONLY AFTER database update succeeds
+    asyncio.create_task(dispatch_automated_drone_email(refreshed, new_status))
     try:
         await cache_service.delete_namespace("drone_bookings")
     except Exception:
         pass
 
-    return existing
+    return refreshed
