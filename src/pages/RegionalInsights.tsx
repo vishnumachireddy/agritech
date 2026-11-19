@@ -209,16 +209,16 @@ const RegionalInsights = () => {
     <div className="animate-fade-in space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-primary">Regional Insights</h1>
-          <p className="text-sm text-muted-foreground flex items-center gap-1">
-            <MapPin className="w-3.5 h-3.5 text-primary" /> {region} Agricultural Trends
+          <h1 className="text-xl sm:text-2xl font-display font-bold text-primary">Regional Insights</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1">
+            <MapPin className="w-3.5 h-3.5 text-primary flex-shrink-0" /> {region} Agricultural Trends
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <select
             value={region}
             onChange={(e) => setRegion(e.target.value)}
-            className="px-3 py-1.5 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="flex-1 sm:flex-initial h-10 px-3 py-1.5 rounded-lg border border-border bg-card text-xs sm:text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary touch-target"
           >
             {REGIONS.map((r) => (
               <option key={r} value={r}>
@@ -226,20 +226,20 @@ const RegionalInsights = () => {
               </option>
             ))}
           </select>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border text-sm bg-card">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            Season: <span className="text-primary font-semibold">{season}</span>
+          <div className="flex items-center gap-2 px-3 h-10 rounded-lg border border-border text-xs sm:text-sm bg-card">
+            <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            <span>Season: <span className="text-primary font-semibold">{season}</span></span>
           </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="bg-card rounded-xl p-12 text-center card-shadow border border-border">
+        <div className="bg-card rounded-xl p-8 sm:p-12 text-center card-shadow border border-border">
           <p className="text-muted-foreground text-sm">Loading regional insights...</p>
         </div>
       ) : sowingData.length === 0 ? (
-        <div className="bg-card rounded-xl p-8 text-center card-shadow border border-border">
-          <p className="text-muted-foreground">No regional farmer data available yet for {region}.</p>
+        <div className="bg-card rounded-xl p-6 sm:p-8 text-center card-shadow border border-border">
+          <p className="text-muted-foreground text-sm">No regional farmer data available yet for {region}.</p>
         </div>
       ) : (
         <>
@@ -248,23 +248,25 @@ const RegionalInsights = () => {
               { title: "Crop Sowing Distribution", sub: `Percentage of cultivated area in ${region}`, data: sowingData },
               { title: "Average Price per Crop", sub: `Estimated price (₹/kg) for major crops in ${region}`, data: profitData },
             ].map((chart) => (
-              <div key={chart.title} className="bg-card rounded-xl p-6 card-shadow border border-border">
+              <div key={chart.title} className="bg-card rounded-xl p-4 sm:p-6 card-shadow border border-border">
                 <h2 className="font-semibold text-sm mb-1">{chart.title}</h2>
                 <p className="text-xs text-muted-foreground mb-4">{chart.sub}</p>
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie data={chart.data} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value">
-                      {chart.data.map((entry: any) => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex gap-4 justify-center mt-2 flex-wrap">
+                <div className="w-full h-[200px] sm:h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={chart.data} cx="50%" cy="50%" innerRadius={50} outerRadius={78} dataKey="value">
+                        {chart.data.map((entry: any) => (
+                          <Cell key={entry.name} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex gap-2 sm:gap-4 justify-center mt-3 flex-wrap">
                   {chart.data.map((d: any) => (
-                    <span key={d.name} className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} /> {d.name} ({d.value}{chart.title.includes("Price") ? " ₹/kg" : "%"})
+                    <span key={d.name} className="flex items-center gap-1 text-[11px] sm:text-xs text-muted-foreground">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} /> {d.name} ({d.value}{chart.title.includes("Price") ? " ₹/kg" : "%"})
                     </span>
                   ))}
                 </div>
@@ -273,17 +275,17 @@ const RegionalInsights = () => {
           </div>
 
           {/* Seasonal Insight */}
-          <div className="bg-accent/50 rounded-xl p-6 border border-primary/20">
+          <div className="bg-accent/50 rounded-xl p-4 sm:p-6 border border-primary/20">
             <div className="flex items-start gap-3">
-              <span className="text-2xl">₹</span>
+              <span className="text-xl sm:text-2xl font-bold flex-shrink-0">₹</span>
               <div>
-                <p className="font-semibold text-sm">
+                <p className="font-semibold text-xs sm:text-sm">
                   Seasonal Insight for {region}{" "}
-                  <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded-full ml-2">
+                  <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded-full ml-1 sm:ml-2">
                     {season}
                   </span>
                 </p>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
                   Our regional models indicate that <strong>{topCrop || "N/A"}</strong> covers the largest cultivated area in {region},
                   while <strong>{bestProfit || "N/A"}</strong> commands the highest average realization per kg this season.
                   Check the <span className="text-primary font-semibold">Demand & Supply</span> module for real-time buyer demand and wholesale rates.

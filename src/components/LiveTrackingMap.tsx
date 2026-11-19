@@ -242,21 +242,21 @@ const LiveTrackingMap = ({ orderId, consumerLat, consumerLng, initialFarmerLat, 
   return (
     <div className="space-y-4">
       {/* Live ETA Banner */}
-      <div className="bg-primary/10 border border-primary/20 rounded-xl p-4">
-        <div className="flex items-center justify-between">
+      <div className="bg-primary/10 border border-primary/20 rounded-xl p-3 sm:p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Estimated Arrival</p>
-            <p className="text-2xl font-bold text-foreground">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">Estimated Arrival</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground">
               {etaSeconds !== null ? formatEta(etaSeconds) : "Calculating..."}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Distance</p>
-            <p className="text-lg font-semibold text-foreground">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">Distance</p>
+            <p className="text-base sm:text-lg font-semibold text-foreground">
               {routeInfo ? formatDistance(routeInfo.distance) : "..."}
             </p>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/20 rounded-full">
+          <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-primary/20 rounded-full">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
@@ -278,13 +278,13 @@ const LiveTrackingMap = ({ orderId, consumerLat, consumerLng, initialFarmerLat, 
 
       {/* Contact */}
       {(farmerPhone || farmerName) && (
-        <div className="flex items-center justify-between bg-accent/50 rounded-lg px-4 py-2.5">
-          <div className="text-sm">
+        <div className="flex items-center justify-between bg-accent/50 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5">
+          <div className="text-xs sm:text-sm">
             <span className="text-muted-foreground">Delivery by </span>
             <span className="font-medium text-foreground">{farmerName || "Farmer"}</span>
           </div>
           {farmerPhone && (
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => window.open(`tel:${farmerPhone}`)}>
+            <Button size="sm" variant="outline" className="gap-1.5 h-8 touch-target" onClick={() => window.open(`tel:${farmerPhone}`)}>
               <Phone className="w-3.5 h-3.5" /> Call
             </Button>
           )}
@@ -292,7 +292,7 @@ const LiveTrackingMap = ({ orderId, consumerLat, consumerLng, initialFarmerLat, 
       )}
 
       {/* Map */}
-      <div className="w-full h-[350px] rounded-xl overflow-hidden border border-border shadow-sm">
+      <div className="w-full h-[260px] sm:h-[350px] rounded-xl overflow-hidden border border-border shadow-sm">
         <MapContainer center={center} zoom={13} style={{ height: "100%", width: "100%" }} scrollWheelZoom={true}>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

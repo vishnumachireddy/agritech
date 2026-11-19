@@ -244,20 +244,20 @@ const UnifiedProfile = () => {
 
     return (
         <div className="max-w-5xl mx-auto space-y-6 animate-fade-in pb-12">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-display font-bold">Profile Settings</h1>
-                    <p className="text-muted-foreground mt-1">Manage your account and preferences</p>
+                    <h1 className="text-2xl sm:text-3xl font-display font-bold">Profile Settings</h1>
+                    <p className="text-sm text-muted-foreground mt-1">Manage your account and preferences</p>
                 </div>
                 {!editMode && (
-                    <Button onClick={() => setEditMode(true)} className="gap-2 shrink-0">
+                    <Button onClick={() => setEditMode(true)} className="gap-2 w-full sm:w-auto shrink-0">
                         <Edit2 className="w-4 h-4" /> Edit Profile
                     </Button>
                 )}
                 {editMode && (
-                    <div className="flex gap-2 shrink-0">
-                        <Button variant="outline" onClick={handleCancel} disabled={saving}><X className="w-4 h-4 mr-2" /> Cancel</Button>
-                        <Button onClick={handleSave} disabled={saving}><Save className="w-4 h-4 mr-2" /> {saving ? 'Saving...' : 'Save Changes'}</Button>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto shrink-0">
+                        <Button variant="outline" onClick={handleCancel} disabled={saving} className="w-full sm:w-auto"><X className="w-4 h-4 mr-2" /> Cancel</Button>
+                        <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto"><Save className="w-4 h-4 mr-2" /> {saving ? 'Saving...' : 'Save Changes'}</Button>
                     </div>
                 )}
             </div>

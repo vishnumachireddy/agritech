@@ -121,20 +121,20 @@ const ProviderBookings = () => {
 
   return (
     <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
-      <div className="flex items-center justify-between border-b pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <ShieldCheck className="w-7 h-7 text-primary" />
-            <h1 className="text-2xl font-display font-bold text-foreground">Spray Provider Operations Dashboard</h1>
+            <ShieldCheck className="w-6 h-6 sm:w-7 sm:h-7 text-primary flex-shrink-0" />
+            <h1 className="text-xl sm:text-2xl font-display font-bold text-foreground">Spray Provider Operations Dashboard</h1>
           </div>
-          <p className="text-sm text-muted-foreground">Manage incoming field spraying requests and broadcast live progress to farmers</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Manage incoming field spraying requests and broadcast live progress to farmers</p>
         </div>
-        <Badge variant="outline" className="text-xs py-1 px-3">Operator Role Active</Badge>
+        <Badge variant="outline" className="self-start sm:self-auto text-xs py-1 px-3">Operator Role Active</Badge>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {bookings.length === 0 ? (
-          <Card className="col-span-2 border-dashed">
+          <Card className="col-span-full border-dashed">
             <CardContent className="py-12 text-center text-muted-foreground">
               <Plane className="w-10 h-10 mx-auto mb-3 opacity-20" />
               <p className="font-semibold text-base">No spray bookings assigned</p>
@@ -145,17 +145,17 @@ const ProviderBookings = () => {
           bookings.map((b) => (
             <Card key={b.id} className="overflow-hidden border-border/80 hover:border-primary/50 transition-colors shadow-sm">
               <CardHeader className="bg-muted/20 pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex flex-col xs:flex-row xs:items-start justify-between gap-2">
+                  <div className="min-w-0">
                     <span className="text-[10px] uppercase font-bold text-primary">{b.spray_type}</span>
-                    <CardTitle className="text-lg font-bold">{b.crop}</CardTitle>
-                    <CardDescription className="text-xs">Farmer: <span className="font-semibold text-foreground">{b.farmer_name}</span> ({b.farmer_phone})</CardDescription>
+                    <CardTitle className="text-base sm:text-lg font-bold truncate">{b.crop}</CardTitle>
+                    <CardDescription className="text-xs truncate">Farmer: <span className="font-semibold text-foreground">{b.farmer_name}</span> ({b.farmer_phone})</CardDescription>
                   </div>
-                  <div>{getStatusBadge(b.status)}</div>
+                  <div className="flex-shrink-0">{getStatusBadge(b.status)}</div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4 pt-4">
-                <div className="grid grid-cols-2 gap-3 text-xs bg-muted/30 p-3 rounded-lg border border-border/50">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs bg-muted/30 p-3 rounded-lg border border-border/50">
                   <div>
                     <span className="text-muted-foreground block">Field Area:</span>
                     <span className="font-bold text-foreground text-sm">{b.field_area} Acres</span>
@@ -193,7 +193,7 @@ const ProviderBookings = () => {
                         size="sm"
                         disabled={updatingId === b.id}
                         onClick={() => handleUpdateStatus(b.id, "ACCEPTED")}
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1 h-9 touch-target"
                       >
                         {updatingId === b.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                         Accept Request
@@ -203,7 +203,7 @@ const ProviderBookings = () => {
                         variant="outline"
                         disabled={updatingId === b.id}
                         onClick={() => handleUpdateStatus(b.id, "REJECTED")}
-                        className="flex-1 text-destructive hover:bg-destructive/10 gap-1"
+                        className="flex-1 text-destructive hover:bg-destructive/10 gap-1 h-9 touch-target"
                       >
                         <XCircle className="w-3.5 h-3.5" /> Reject
                       </Button>
@@ -215,7 +215,7 @@ const ProviderBookings = () => {
                       size="sm"
                       disabled={updatingId === b.id}
                       onClick={() => handleUpdateStatus(b.id, "SCHEDULED")}
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-1"
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-1 h-9 touch-target"
                     >
                       {updatingId === b.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Calendar className="w-3.5 h-3.5" />}
                       Schedule Operator Crew
@@ -227,7 +227,7 @@ const ProviderBookings = () => {
                       size="sm"
                       disabled={updatingId === b.id}
                       onClick={() => handleUpdateStatus(b.id, "IN_PROGRESS")}
-                      className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-1"
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-1 h-9 touch-target"
                     >
                       {updatingId === b.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
                       Start Spraying Service
@@ -239,7 +239,7 @@ const ProviderBookings = () => {
                       size="sm"
                       disabled={updatingId === b.id}
                       onClick={() => handleUpdateStatus(b.id, "COMPLETED")}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-1 h-9 touch-target"
                     >
                       {updatingId === b.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                       Mark Spraying Completed

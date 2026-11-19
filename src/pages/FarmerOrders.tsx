@@ -284,9 +284,10 @@ const FarmerOrders = () => {
     switch (order.status) {
       case "pending":
         return (
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full sm:w-auto">
             <Button
               size="sm"
+              className="flex-1 sm:flex-initial h-9 touch-target"
               disabled={isThisOrderUpdating}
               onClick={() => updateStatus(order.id, "accepted")}
             >
@@ -295,6 +296,7 @@ const FarmerOrders = () => {
             <Button
               size="sm"
               variant="destructive"
+              className="flex-1 sm:flex-initial h-9 touch-target"
               disabled={isThisOrderUpdating}
               onClick={() => updateStatus(order.id, "rejected")}
             >
@@ -306,6 +308,7 @@ const FarmerOrders = () => {
         return (
           <Button
             size="sm"
+            className="w-full sm:w-auto h-9 touch-target"
             disabled={isThisOrderUpdating}
             onClick={() => updateStatus(order.id, "packed")}
           >
@@ -316,6 +319,7 @@ const FarmerOrders = () => {
         return (
           <Button
             size="sm"
+            className="w-full sm:w-auto h-9 touch-target"
             disabled={isThisOrderUpdating}
             onClick={() => updateStatus(order.id, "out_for_delivery")}
           >
@@ -324,20 +328,21 @@ const FarmerOrders = () => {
         );
       case "out_for_delivery":
         return (
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap w-full sm:w-auto">
             <Button
               size="sm"
+              className="flex-1 sm:flex-initial h-9 touch-target"
               disabled={isThisOrderUpdating}
               onClick={() => updateStatus(order.id, "delivered")}
             >
               {isDelivering ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-1" />} Mark Delivered
             </Button>
             {activeTrackingOrderRef.current === order.id ? (
-              <Button size="sm" variant="outline" className="gap-1" onClick={stopDeliveryTracking}>
+              <Button size="sm" variant="outline" className="gap-1 flex-1 sm:flex-initial h-9 touch-target" onClick={stopDeliveryTracking}>
                 <Navigation className="w-3.5 h-3.5 text-destructive" /> Stop GPS
               </Button>
             ) : (
-              <Button size="sm" variant="outline" className="gap-1" onClick={() => startDeliveryTracking(order.id)}>
+              <Button size="sm" variant="outline" className="gap-1 flex-1 sm:flex-initial h-9 touch-target" onClick={() => startDeliveryTracking(order.id)}>
                 <MapPin className="w-3.5 h-3.5 text-primary animate-pulse" /> Resume GPS
               </Button>
             )}
@@ -352,23 +357,23 @@ const FarmerOrders = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Order Management</h1>
-          <p className="text-muted-foreground text-sm">Manage incoming orders from consumers</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Order Management</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm">Manage incoming orders from consumers</p>
         </div>
         {pendingCount > 0 && (
-          <Badge variant="destructive" className="text-sm px-3 py-1">
+          <Badge variant="destructive" className="self-start sm:self-auto text-xs sm:text-sm px-3 py-1">
             {pendingCount} New Order{pendingCount > 1 ? "s" : ""}
           </Badge>
         )}
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground">Loading orders...</p>
+        <p className="text-muted-foreground text-sm">Loading orders...</p>
       ) : orders.length === 0 ? (
         <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
+          <CardContent className="py-8 text-center text-muted-foreground text-sm">
             No orders yet. Your orders will appear here when consumers place them.
           </CardContent>
         </Card>
@@ -377,7 +382,7 @@ const FarmerOrders = () => {
           {orders.map((order) => (
             <Card key={order.id} className={order.status === "pending" ? "border-primary/50 shadow-sm" : ""}>
               <CardContent className="py-4 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-medium">Order #{order.id.slice(0, 8)}</p>
                   <div className="flex items-center gap-2">
                     {activeTrackingOrderRef.current === order.id && (
@@ -394,25 +399,25 @@ const FarmerOrders = () => {
                     </Badge>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs sm:text-sm">
                   <div className="flex items-center gap-1">
-                    <User className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>{order.consumer_name}</span>
+                    <User className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                    <span className="truncate">{order.consumer_name}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Wheat className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>{order.crop_name}</span>
+                    <Wheat className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                    <span className="truncate">{order.crop_name}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Package className="w-3.5 h-3.5 text-muted-foreground" />
+                    <Package className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                     <span>{order.quantity} kg</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <IndianRupee className="w-3.5 h-3.5 text-muted-foreground" />
+                    <IndianRupee className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                     <span className="font-semibold">₹{order.total_price}</span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/40">
                   <span className="text-xs text-muted-foreground">
                     {new Date(order.created_at).toLocaleDateString()}
                   </span>

@@ -272,17 +272,17 @@ const CropScanner = () => {
   };
 
   return (
-    <div className="animate-fade-in">
-      <div className="flex items-center gap-3 mb-1">
-        <ScanLine className="w-6 h-6 text-primary" />
-        <h1 className="text-2xl font-display font-bold text-foreground">AI Crop Disease Scanner</h1>
+    <div className="animate-fade-in space-y-4 sm:space-y-6">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <ScanLine className="w-6 h-6 text-primary shrink-0" />
+        <h1 className="text-xl sm:text-2xl font-display font-bold text-foreground">AI Crop Disease Scanner</h1>
         <span className="px-2 py-0.5 bg-agri-amber/20 text-agri-amber text-[10px] font-bold uppercase rounded-full">Pro AI System</span>
       </div>
-      <p className="text-sm text-muted-foreground mb-6">AI detects your crop and any disease automatically from the photo.</p>
+      <p className="text-xs sm:text-sm text-muted-foreground -mt-3">AI detects your crop and any disease automatically from the photo.</p>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
         {/* Upload Section */}
-        <div className="lg:col-span-2 bg-card rounded-xl p-6 card-shadow border border-border h-fit">
+        <div className="lg:col-span-2 bg-card rounded-xl p-4 sm:p-6 card-shadow border border-border h-fit">
           <h2 className="font-semibold text-sm mb-4">1. Capture or Upload Image</h2>
 
           <div className="mb-4">
@@ -313,30 +313,32 @@ const CropScanner = () => {
           />
 
           <div
-            className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center text-center hover:border-primary/40 transition-colors cursor-pointer overflow-hidden aspect-square"
+            className="border-2 border-dashed border-border rounded-xl p-4 sm:p-8 flex flex-col items-center justify-center text-center hover:border-primary/40 transition-colors cursor-pointer overflow-hidden aspect-square max-h-[300px] sm:max-h-none mx-auto w-full"
             onClick={() => fileInputRef.current?.click()}
           >
             {imagePreview ? (
               <img src={imagePreview} alt="Crop preview" className="w-full h-full rounded-lg object-cover" />
             ) : (
               <>
-                <Upload className="w-10 h-10 text-muted-foreground mb-3" />
+                <Upload className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground mb-3" />
                 <p className="font-semibold text-sm text-foreground">Drop crop photo here</p>
-                <p className="text-xs text-muted-foreground">or click to browse (JPEG, PNG, WebP &lt; 5MB)</p>
+                <p className="text-xs text-muted-foreground mt-1">or click to browse (JPEG, PNG, WebP &lt; 5MB)</p>
               </>
             )}
           </div>
 
-          <div className="flex gap-3 mt-4">
+          <div className="flex gap-2 sm:gap-3 mt-4">
             <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted"
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-border text-xs sm:text-sm font-medium text-foreground hover:bg-muted"
             >
               <Upload className="w-4 h-4" /> Upload
             </button>
             <button
+              type="button"
               onClick={openCamera}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted"
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-border text-xs sm:text-sm font-medium text-foreground hover:bg-muted"
             >
               <Camera className="w-4 h-4" /> Camera
             </button>
@@ -362,7 +364,7 @@ const CropScanner = () => {
         </div>
 
         {/* Results */}
-        <div className="lg:col-span-3 bg-card rounded-xl border border-border overflow-hidden flex flex-col min-h-[500px]">
+        <div className="lg:col-span-3 bg-card rounded-xl border border-border overflow-hidden flex flex-col min-h-[420px] sm:min-h-[500px]">
           <div className="bg-muted/30 px-6 py-4 border-b border-border flex justify-between items-center">
             <h2 className="font-semibold text-sm">2. AI Diagnostic Report</h2>
             {result && (

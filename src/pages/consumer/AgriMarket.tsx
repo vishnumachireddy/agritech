@@ -111,30 +111,30 @@ const AgriMarket = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Agri Market</h1>
-        <p className="text-muted-foreground text-sm">Browse available crops from registered farmers</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Agri Market</h1>
+        <p className="text-muted-foreground text-xs sm:text-sm">Browse available crops from registered farmers</p>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-2 sm:gap-3">
         <Select value={cropFilter} onValueChange={setCropFilter}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Filter by Crop" /></SelectTrigger>
+          <SelectTrigger className="w-[calc(50%-4px)] sm:w-[160px] h-10"><SelectValue placeholder="Filter by Crop" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Crops</SelectItem>
             {crops.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={regionFilter} onValueChange={setRegionFilter}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Filter by Region" /></SelectTrigger>
+          <SelectTrigger className="w-[calc(50%-4px)] sm:w-[160px] h-10"><SelectValue placeholder="Filter by Region" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Regions</SelectItem>
             {regions.map((r) => <SelectItem key={r!} value={r!}>{r}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[180px] h-10"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="price_asc">Price: Low → High</SelectItem>
             <SelectItem value="price_desc">Price: High → Low</SelectItem>
@@ -145,37 +145,38 @@ const AgriMarket = () => {
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground">Loading market data...</p>
+        <p className="text-muted-foreground text-sm">Loading market data...</p>
       ) : filtered.length === 0 ? (
-        <p className="text-muted-foreground">No crops available.</p>
+        <p className="text-muted-foreground text-sm">No crops available.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((item, idx) => (
             <Card key={`${item.farmer_id}-${idx}`} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Wheat className="w-4 h-4 text-primary" /> {item.crop_name}
+                <div className="flex items-start justify-between gap-1.5 flex-wrap">
+                  <CardTitle className="text-base flex items-center gap-1.5 min-w-0">
+                    <Wheat className="w-4 h-4 text-primary flex-shrink-0" />
+                    <span className="truncate">{item.crop_name}</span>
                   </CardTitle>
-                  <Badge>{item.farming_type}</Badge>
+                  <Badge variant="secondary" className="text-[10px]">{item.farming_type}</Badge>
                 </div>
-                <p className="text-sm text-muted-foreground">{item.farmer_name}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">{item.farmer_name}</p>
               </CardHeader>
-              <CardContent className="space-y-2 text-sm">
+              <CardContent className="space-y-2 text-xs sm:text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> Region</span>
+                  <span className="flex items-center gap-1 text-muted-foreground"><MapPin className="w-3.5 h-3.5" /> Region</span>
                   <span>{item.region || "N/A"}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1"><Package className="w-3.5 h-3.5" /> Available Yield</span>
+                  <span className="flex items-center gap-1 text-muted-foreground"><Package className="w-3.5 h-3.5" /> Available Yield</span>
                   <span>{item.total_yield} kg</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5" /> Price/kg</span>
+                  <span className="flex items-center gap-1 text-muted-foreground"><IndianRupee className="w-3.5 h-3.5" /> Price/kg</span>
                   <span className="font-semibold">₹{item.expected_price}</span>
                 </div>
                 <Button
-                  className="w-full mt-2"
+                  className="w-full mt-2 h-9 touch-target"
                   size="sm"
                   onClick={() => { setOrderItem(item); setOrderQty(""); }}
                 >
@@ -189,20 +190,20 @@ const AgriMarket = () => {
 
       {/* Order Modal */}
       <Dialog open={!!orderItem} onOpenChange={(open) => { if (!open) setOrderItem(null); }}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Place Order — {orderItem?.crop_name}</DialogTitle>
+            <DialogTitle className="text-base sm:text-lg">Place Order — {orderItem?.crop_name}</DialogTitle>
           </DialogHeader>
           {orderItem && (
             <div className="space-y-4">
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 Farmer: <span className="text-foreground font-medium">{orderItem.farmer_name}</span>
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 Price: <span className="text-foreground font-medium">₹{orderItem.expected_price}/kg</span>
               </div>
               <div className="space-y-2">
-                <Label>Quantity (kg)</Label>
+                <Label className="text-xs sm:text-sm">Quantity (kg)</Label>
                 <Input
                   type="number"
                   min="1"
@@ -210,10 +211,11 @@ const AgriMarket = () => {
                   value={orderQty}
                   onChange={(e) => setOrderQty(e.target.value)}
                   placeholder="Enter quantity in kg"
+                  className="h-10 text-sm"
                 />
               </div>
               {orderQty && parseFloat(orderQty) > 0 && (
-                <div className="bg-muted rounded-md p-3 text-sm">
+                <div className="bg-muted rounded-md p-3 text-xs sm:text-sm">
                   <div className="flex justify-between">
                     <span>Total Price</span>
                     <span className="font-bold text-foreground">
@@ -224,9 +226,9 @@ const AgriMarket = () => {
               )}
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOrderItem(null)}>Cancel</Button>
-            <Button onClick={handlePlaceOrder} disabled={ordering}>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setOrderItem(null)} className="h-9 touch-target">Cancel</Button>
+            <Button onClick={handlePlaceOrder} disabled={ordering} className="h-9 touch-target">
               {ordering ? "Placing..." : "Confirm Order"}
             </Button>
           </DialogFooter>

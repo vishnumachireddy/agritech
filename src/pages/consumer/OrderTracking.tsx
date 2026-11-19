@@ -230,10 +230,10 @@ const OrderTracking = () => {
       {order.status !== "rejected" && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Delivery Progress</CardTitle>
+            <CardTitle className="text-base sm:text-lg">Delivery Progress</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
+          <CardContent className="overflow-x-auto no-scrollbar pb-4">
+            <div className="flex items-center justify-between min-w-[340px] sm:min-w-0 px-2">
               {STEPS.map((step, idx) => {
                 const isCompleted = idx <= currentStepIdx;
                 const isCurrent = idx === currentStepIdx;
@@ -250,7 +250,7 @@ const OrderTracking = () => {
                     } ${isCurrent ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}>
                       {isCompleted ? <CheckCircle className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
                     </div>
-                    <span className={`text-xs mt-2 text-center ${isCompleted ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                    <span className={`text-[10px] sm:text-xs mt-2 text-center whitespace-nowrap sm:whitespace-normal px-1 ${isCompleted ? "text-foreground font-medium" : "text-muted-foreground"}`}>
                       {step.label}
                     </span>
                   </div>

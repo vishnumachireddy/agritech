@@ -80,25 +80,25 @@ const Fertilizer = () => {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
         <div className="flex items-center gap-3">
-          <FlaskConical className="w-6 h-6 text-primary" />
+          <FlaskConical className="w-6 h-6 text-primary flex-shrink-0" />
           <div>
-            <h1 className="text-2xl font-display font-bold text-agri-orange uppercase tracking-wide">{t("AI Chatbot", "రైతు AI సహాయకుడు")}</h1>
-            <p className="text-sm text-muted-foreground">{t("Expert AI Advice", "నిపుణుల వ్యవసాయ & ఎరువుల సలహాలు")}</p>
+            <h1 className="text-xl sm:text-2xl font-display font-bold text-agri-orange uppercase tracking-wide">{t("AI Chatbot", "రైతు AI సహాయకుడు")}</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">{t("Expert AI Advice", "నిపుణుల వ్యవసాయ & ఎరువుల సలహాలు")}</p>
           </div>
         </div>
-        <span className="flex items-center gap-1.5 px-3 py-1 bg-accent text-primary text-xs font-semibold rounded-full">
+        <span className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1 bg-accent text-primary text-xs font-semibold rounded-full">
           <span className="w-2 h-2 rounded-full bg-primary animate-pulse-gentle" /> {isTelugu ? "AI సిద్ధంగా ఉంది" : "AI Active"}
         </span>
       </div>
 
-      <div className="max-w-2xl mx-auto bg-card rounded-xl card-shadow border border-border flex flex-col" style={{ height: "500px" }}>
-        <div ref={scrollRef} className="flex-1 overflow-auto p-6 space-y-4">
+      <div className="max-w-2xl mx-auto bg-card rounded-xl card-shadow border border-border flex flex-col h-[calc(100dvh-230px)] min-h-[420px] max-h-[650px]">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4">
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[80%] ${m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"} rounded-xl px-4 py-3`}>
-                <p className="text-sm whitespace-pre-wrap">{m.text}</p>
+              <div className={`max-w-[88%] sm:max-w-[80%] ${m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"} rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 break-words`}>
+                <p className="text-xs sm:text-sm whitespace-pre-wrap">{m.text}</p>
                 <p className={`text-[10px] mt-1 ${m.role === "user" ? "opacity-70" : "text-muted-foreground"}`}>{m.time}</p>
               </div>
             </div>
@@ -111,17 +111,22 @@ const Fertilizer = () => {
             </div>
           )}
         </div>
-        <div className="p-4 border-t border-border flex gap-2">
+        <div className="p-2.5 sm:p-4 border-t border-border flex items-center gap-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder={isTelugu ? "ఎరువులు, యూరియా లేదా పంట పోషకాల గురించి అడగండి..." : "Ask about NPK, Urea, or Organic Fertilizers..."}
-            className="flex-1 px-4 py-2 rounded-lg bg-muted text-sm border-0 focus:outline-none focus:ring-2 focus:ring-ring"
+            placeholder={isTelugu ? "ఎరువులు, యూరియా గురించి అడగండి..." : "Ask about NPK, Urea, or Organic Fertilizers..."}
+            className="flex-1 px-3 sm:px-4 h-11 rounded-lg bg-muted text-xs sm:text-sm border-0 focus:outline-none focus:ring-2 focus:ring-ring"
             disabled={loading}
           />
-          <button onClick={handleSend} disabled={loading} className="p-2.5 agri-gradient rounded-lg text-primary-foreground disabled:opacity-50">
+          <button 
+            onClick={handleSend} 
+            disabled={loading} 
+            aria-label="Send message"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center agri-gradient rounded-lg text-primary-foreground disabled:opacity-50 touch-target"
+          >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
         </div>

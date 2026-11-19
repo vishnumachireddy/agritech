@@ -77,12 +77,12 @@ const ConsumerDashboard = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Hero */}
-      <div className="rounded-xl border bg-card p-6">
-        <Badge variant="secondary" className="mb-2">SMART AGRI MARKETPLACE</Badge>
-        <h1 className="text-2xl font-display font-bold text-foreground">
+      <div className="rounded-xl border bg-card p-4 sm:p-6 card-shadow">
+        <Badge variant="secondary" className="mb-2 text-[10px] sm:text-xs">SMART AGRI MARKETPLACE</Badge>
+        <h1 className="text-xl sm:text-2xl font-display font-bold text-foreground">
           Welcome to AgriAssist Consumer
         </h1>
-        <p className="text-muted-foreground mt-1 max-w-xl">
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xl leading-relaxed">
           Buy fresh produce directly from verified farmers. Compare prices, track quality, and support sustainable agriculture.
         </p>
         {profile?.region && (
@@ -91,15 +91,15 @@ const ConsumerDashboard = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {cards.map((c) => (
           <Card key={c.label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{c.label}</CardTitle>
-              <c.icon className={`w-4 h-4 ${c.color}`} />
+            <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground truncate">{c.label}</CardTitle>
+              <c.icon className={`w-4 h-4 ${c.color} flex-shrink-0`} />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-display font-bold">{c.value}</div>
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+              <div className="text-lg sm:text-2xl font-display font-bold">{c.value}</div>
             </CardContent>
           </Card>
         ))}

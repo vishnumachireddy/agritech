@@ -52,26 +52,26 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
+    <div className="min-h-screen flex items-center justify-center bg-background p-3 sm:p-4">
+      <Card className="w-full max-w-md shadow-md border-border">
+        <CardHeader className="text-center px-4 sm:px-6">
           <div className="mx-auto w-12 h-12 rounded-full agri-gradient flex items-center justify-center mb-2">
             <span className="text-lg font-bold text-primary-foreground">A</span>
           </div>
-          <CardTitle className="font-display text-2xl">Welcome to AgriAssist</CardTitle>
-          <CardDescription>Sign in with your email & password. Your account role is loaded automatically.</CardDescription>
+          <CardTitle className="font-display text-xl sm:text-2xl">Welcome to AgriAssist</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">Sign in with your email & password. Your account role is loaded automatically.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6">
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className="h-10 text-sm" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required className="h-10 text-sm" />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full h-10 text-sm font-semibold" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
@@ -86,12 +86,12 @@ const Login = () => {
                 Clicking fills demo credentials into the form above so you can click Sign In.
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="w-full text-xs font-medium border-primary/30 hover:bg-primary/10 hover:text-primary flex flex-col h-auto py-2"
+                className="w-full text-xs font-medium border-primary/30 hover:bg-primary/10 hover:text-primary flex flex-col h-auto py-2.5"
                 onClick={() => fillDemo("farmer@agri.com", "farmer123", "Farmer")}
               >
                 <span className="font-bold text-foreground">🚜 Auto-fill Farmer Demo</span>
@@ -101,7 +101,7 @@ const Login = () => {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="w-full text-xs font-medium border-foreground/20 hover:bg-muted hover:text-foreground flex flex-col h-auto py-2"
+                className="w-full text-xs font-medium border-foreground/20 hover:bg-muted hover:text-foreground flex flex-col h-auto py-2.5"
                 onClick={() => fillDemo("consumer@agri.com", "consumer123", "Consumer")}
               >
                 <span className="font-bold text-foreground">🛒 Auto-fill Consumer Demo</span>

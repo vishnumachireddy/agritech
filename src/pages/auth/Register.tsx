@@ -169,22 +169,22 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="text-center">
+    <div className="min-h-screen flex items-center justify-center bg-background p-3 sm:p-4 my-2 sm:my-6">
+      <Card className="w-full max-w-lg shadow-md border-border">
+        <CardHeader className="text-center px-4 sm:px-6">
           <div className="mx-auto w-12 h-12 rounded-full agri-gradient flex items-center justify-center mb-2">
             <span className="text-lg font-bold text-primary-foreground">A</span>
           </div>
-          <CardTitle className="font-display text-2xl">Create Account</CardTitle>
-          <CardDescription>Join AgriAssist as a farmer or consumer</CardDescription>
+          <CardTitle className="font-display text-xl sm:text-2xl">Create Account</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">Join AgriAssist as a farmer or consumer</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6">
           <form onSubmit={handleInitiateRegister} className="space-y-4">
             {/* Role Selection */}
             <div className="space-y-2">
               <Label>Role</Label>
               <Select value={role} onValueChange={setRole}>
-                <SelectTrigger>
+                <SelectTrigger className="h-10 text-sm">
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -197,23 +197,23 @@ const Register = () => {
             {/* Common Fields */}
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
-              <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your full name" required />
+              <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your full name" required className="h-10 text-sm" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className="h-10 text-sm" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required className="h-10 text-sm" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
-              <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 9876543210" required />
+              <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 9876543210" required className="h-10 text-sm" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="region">Region / District</Label>
-              <Input id="region" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Nashik, Maharashtra" required />
+              <Input id="region" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Nashik, Maharashtra" required className="h-10 text-sm" />
             </div>
 
             {/* Farmer-specific Fields */}
@@ -226,11 +226,11 @@ const Register = () => {
                   <p className="text-xs text-muted-foreground">{locationStatus}</p>
                 )}
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label>Primary Crop</Label>
                     <Select value={primaryCrop} onValueChange={setPrimaryCrop}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-10 text-sm">
                         <SelectValue placeholder="Select crop" />
                       </SelectTrigger>
                       <SelectContent>
@@ -243,7 +243,7 @@ const Register = () => {
                   <div className="space-y-2">
                     <Label>Secondary Crop (optional)</Label>
                     <Select value={secondaryCrop} onValueChange={setSecondaryCrop}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-10 text-sm">
                         <SelectValue placeholder="Select crop" />
                       </SelectTrigger>
                       <SelectContent>
@@ -256,24 +256,24 @@ const Register = () => {
                   </div>
                   <div className="space-y-2">
                     <Label>Total Land Area (acres)</Label>
-                    <Input type="number" step="0.1" value={landArea} onChange={(e) => setLandArea(e.target.value)} placeholder="e.g. 5" required />
+                    <Input type="number" step="0.1" value={landArea} onChange={(e) => setLandArea(e.target.value)} placeholder="e.g. 5" required className="h-10 text-sm" />
                   </div>
                   <div className="space-y-2">
                     <Label>Total Yield (kg)</Label>
-                    <Input type="number" step="1" value={totalYield} onChange={(e) => setTotalYield(e.target.value)} placeholder="e.g. 2000" required />
+                    <Input type="number" step="1" value={totalYield} onChange={(e) => setTotalYield(e.target.value)} placeholder="e.g. 2000" required className="h-10 text-sm" />
                   </div>
                   <div className="space-y-2">
                     <Label>Monthly Production (kg)</Label>
-                    <Input type="number" step="1" value={monthlyProduction} onChange={(e) => setMonthlyProduction(e.target.value)} placeholder="e.g. 500" required />
+                    <Input type="number" step="1" value={monthlyProduction} onChange={(e) => setMonthlyProduction(e.target.value)} placeholder="e.g. 500" required className="h-10 text-sm" />
                   </div>
                   <div className="space-y-2">
                     <Label>Expected Price (₹/kg)</Label>
-                    <Input type="number" step="0.5" value={expectedPrice} onChange={(e) => setExpectedPrice(e.target.value)} placeholder="e.g. 25" required />
+                    <Input type="number" step="0.5" value={expectedPrice} onChange={(e) => setExpectedPrice(e.target.value)} placeholder="e.g. 25" required className="h-10 text-sm" />
                   </div>
                   <div className="space-y-2">
                     <Label>Water Availability</Label>
                     <Select value={waterAvailability} onValueChange={setWaterAvailability}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-10 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Low">Low</SelectItem>
                         <SelectItem value="Medium">Medium</SelectItem>
@@ -284,7 +284,7 @@ const Register = () => {
                   <div className="space-y-2">
                     <Label>Farming Type</Label>
                     <Select value={farmingType} onValueChange={setFarmingType}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-10 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Organic">Organic</SelectItem>
                         <SelectItem value="Mixed">Mixed</SelectItem>
@@ -292,10 +292,10 @@ const Register = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2 col-span-2">
+                  <div className="space-y-2 col-span-1 sm:col-span-2">
                     <Label>Harvest Cycle</Label>
                     <Select value={harvestCycle} onValueChange={setHarvestCycle}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-10 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Monthly">Monthly</SelectItem>
                         <SelectItem value="Seasonal">Seasonal</SelectItem>
@@ -306,7 +306,7 @@ const Register = () => {
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={sendingOtp}>
+            <Button type="submit" className="w-full h-10 text-sm font-semibold" disabled={sendingOtp}>
               {sendingOtp ? "Sending Verification Code..." : "Verify Email & Register"}
             </Button>
           </form>
@@ -319,7 +319,7 @@ const Register = () => {
 
       {/* 6-Digit Email OTP Verification Dialog */}
       <Dialog open={showOtpDialog} onOpenChange={setShowOtpDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
               <span>🌾</span> Verify Email Address
@@ -353,12 +353,13 @@ const Register = () => {
               variant="outline"
               onClick={() => handleInitiateRegister({ preventDefault: () => {} } as any)}
               disabled={sendingOtp || verifyingOtp}
+              className="w-full sm:w-auto"
             >
               {sendingOtp ? "Resending..." : "Resend OTP"}
             </Button>
             <Button
               type="button"
-              className="agri-gradient"
+              className="agri-gradient w-full sm:w-auto"
               onClick={handleVerifyAndCompleteRegister}
               disabled={verifyingOtp || otpCode.length !== 6}
             >

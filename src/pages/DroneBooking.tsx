@@ -276,14 +276,14 @@ const DroneBooking = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 animate-fade-in min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <div className="flex items-center gap-2">
-            <Plane className="w-6 h-6 text-primary" />
-            <h1 className="text-2xl font-display font-bold text-foreground">Drone & Pump Spray Booking</h1>
+            <Plane className="w-6 h-6 text-primary flex-shrink-0" />
+            <h1 className="text-xl sm:text-2xl font-display font-bold text-foreground">Drone & Pump Spray Booking</h1>
           </div>
-          <p className="text-sm text-muted-foreground">Book precision aerial drones or heavy motorized pumps with live status updates</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">Book precision aerial drones or heavy motorized pumps with live status updates</p>
         </div>
       </div>
 
@@ -297,7 +297,7 @@ const DroneBooking = () => {
             <CardDescription>Fill in field specifications to receive instant backend cost estimates</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="spray_type">Spray Service Type *</Label>
                 <Select value={sprayType} onValueChange={(val) => { setSprayType(val); setSelectedProviderId(""); }}>
@@ -325,7 +325,7 @@ const DroneBooking = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="field_area">Field Area (Acres) *</Label>
                 <Input
@@ -354,7 +354,7 @@ const DroneBooking = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="preferred_time">Time Slot *</Label>
                 <Select value={preferredTime} onValueChange={setPreferredTime}>
@@ -407,7 +407,7 @@ const DroneBooking = () => {
                   <div
                     key={p.id}
                     onClick={() => setSelectedProviderId(p.id)}
-                    className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between ${
+                    className={`p-3 rounded-lg border cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
                       selectedProviderId === p.id
                         ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary"
                         : "border-border hover:border-primary/50"
@@ -419,7 +419,7 @@ const DroneBooking = () => {
                         Service: <span className="font-medium text-foreground">{p.service_type}</span> • Rating: ★ {p.rating}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1">
                       <p className="font-bold text-primary text-sm">₹{p.rate_per_acre} <span className="text-xs text-muted-foreground font-normal">/ acre</span></p>
                       <Badge variant="outline" className="text-[10px]">Verified Operator</Badge>
                     </div>
@@ -471,33 +471,33 @@ const DroneBooking = () => {
               ) : (
                 bookings.map((b) => (
                   <div key={b.id} className="p-4 rounded-xl border border-border/80 bg-card space-y-3 shadow-sm hover:border-primary/40 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
                         <span className="text-[10px] uppercase font-bold text-muted-foreground">{b.spray_type}</span>
-                        <h4 className="font-bold text-foreground text-base">{b.crop}</h4>
+                        <h4 className="font-bold text-foreground text-base truncate">{b.crop}</h4>
                       </div>
-                      <span className="text-xs font-mono font-bold text-muted-foreground">{b.booking_id}</span>
+                      <span className="text-xs font-mono font-bold text-muted-foreground flex-shrink-0">{b.booking_id}</span>
                     </div>
 
-                    <div>{getStatusBadge(b.status)}</div>
+                    <div className="flex flex-wrap gap-1">{getStatusBadge(b.status)}</div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground bg-muted/30 p-2.5 rounded-lg">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground bg-muted/30 p-2.5 rounded-lg">
                       <div>
                         <span className="block font-medium text-foreground">Area: {b.field_area} Acres</span>
                         <span>Date: {new Date(b.booking_date).toLocaleDateString()}</span>
                       </div>
-                      <div className="text-right">
+                      <div className="sm:text-right">
                         <span className="block font-bold text-primary">₹{b.estimated_cost} Total</span>
                         <span>Rate: ₹{b.provider_rate}/acre</span>
                       </div>
                     </div>
 
-                    <div className="text-xs space-y-1">
-                      <p className="flex items-center gap-1 text-muted-foreground">
-                        <Phone className="w-3 h-3 text-primary" /> Provider: <span className="font-semibold text-foreground">{b.provider_name}</span> ({b.provider_phone})
+                    <div className="text-xs space-y-1 break-words">
+                      <p className="flex items-center gap-1 text-muted-foreground flex-wrap">
+                        <Phone className="w-3 h-3 text-primary flex-shrink-0" /> Provider: <span className="font-semibold text-foreground">{b.provider_name}</span> ({b.provider_phone})
                       </p>
-                      <p className="flex items-center gap-1 text-muted-foreground">
-                        <MapPin className="w-3 h-3 text-primary" /> Location: <span className="text-foreground">{b.field_location}</span>
+                      <p className="flex items-center gap-1 text-muted-foreground flex-wrap">
+                        <MapPin className="w-3 h-3 text-primary flex-shrink-0" /> Location: <span className="text-foreground">{b.field_location}</span>
                       </p>
                     </div>
 

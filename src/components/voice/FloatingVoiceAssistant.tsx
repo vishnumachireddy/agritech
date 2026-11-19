@@ -105,13 +105,13 @@ export const FloatingVoiceAssistant: React.FC = () => {
       ];
 
   return (
-    <div data-voice-assistant="true" className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div data-voice-assistant="true" className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end max-w-[calc(100vw-32px)]">
       {/* Expanded Assistant Dialog */}
       {isOpen && (
         <div
           role="region"
           aria-label="AgroSmart Voice Assistant"
-          className="mb-3 w-[92vw] sm:w-[420px] max-h-[85vh] h-[550px] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-200"
+          className="mb-3 w-[calc(100vw-32px)] sm:w-[420px] max-h-[80vh] h-[520px] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-200"
         >
           {/* Header */}
           <div className="bg-primary/10 border-b border-border/80 px-4 py-3 flex items-center justify-between">
@@ -486,7 +486,7 @@ export const FloatingVoiceAssistant: React.FC = () => {
               ? "అగ్రోస్మార్ట్ వాయిస్ సహాయకుడిని ప్రారంభించండి"
               : "Activate AgroSmart Voice Assistant"
           }
-          className={`relative group flex items-center justify-center w-14 h-14 rounded-full shadow-xl transition-all duration-300 transform active:scale-95 ${
+          className={`relative group flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-xl transition-all duration-300 transform active:scale-95 ${
             isListening
               ? "bg-red-600 text-white ring-4 ring-red-400/50 scale-105"
               : isSpeaking

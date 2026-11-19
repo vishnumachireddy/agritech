@@ -179,13 +179,13 @@ const Traceability = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-2">
-        <ShieldCheck className="w-5 h-5 text-primary" />
-        <h1 className="text-2xl font-display font-bold text-foreground">Traceability</h1>
+        <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
+        <h1 className="text-xl sm:text-2xl font-display font-bold text-foreground">Traceability</h1>
       </div>
 
       {orders.length === 0 ? (
         <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
+          <CardContent className="py-8 text-center text-muted-foreground text-sm">
             No orders found. Place an order from the Marketplace to track its farm-to-table journey.
           </CardContent>
         </Card>
@@ -195,7 +195,7 @@ const Traceability = () => {
             <CardHeader><CardTitle className="text-base">Select Order to Trace</CardTitle></CardHeader>
             <CardContent>
               <Select value={selectedOrder} onValueChange={setSelectedOrder}>
-                <SelectTrigger className="w-full max-w-md">
+                <SelectTrigger className="w-full max-w-md h-11 text-xs sm:text-sm">
                   <SelectValue placeholder="Choose an order..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -235,17 +235,17 @@ const Traceability = () => {
                         const Icon = step.icon;
                         const isLast = idx === timelineSteps.length - 1;
                         return (
-                          <div key={idx} className="flex gap-4 mb-6 last:mb-0">
+                          <div key={idx} className="flex gap-3 sm:gap-4 mb-5 sm:mb-6 last:mb-0">
                             <div className="flex flex-col items-center">
                               <div className="rounded-full bg-primary/10 p-2">
                                 <Icon className="w-4 h-4 text-primary" />
                               </div>
                               {!isLast && <div className="w-0.5 flex-1 bg-border mt-1" />}
                             </div>
-                            <div className="pb-2">
-                              <p className="text-sm font-medium text-foreground">{step.label}</p>
+                            <div className="pb-2 min-w-0">
+                              <p className="text-xs sm:text-sm font-medium text-foreground">{step.label}</p>
                               {step.date && <p className="text-xs text-muted-foreground">{new Date(step.date).toLocaleDateString()}</p>}
-                              {step.detail && <p className="text-xs text-muted-foreground">{step.detail}</p>}
+                              {step.detail && <p className="text-xs text-muted-foreground break-words">{step.detail}</p>}
                             </div>
                           </div>
                         );
@@ -264,7 +264,7 @@ const Traceability = () => {
                       <iframe
                         title="Farm Location"
                         width="100%"
-                        height="300"
+                        className="w-full h-[220px] sm:h-[300px]"
                         style={{ border: 0 }}
                         loading="lazy"
                         src={`https://www.openstreetmap.org/export/embed.html?bbox=${farmerDetail.longitude - 0.02},${farmerDetail.latitude - 0.02},${farmerDetail.longitude + 0.02},${farmerDetail.latitude + 0.02}&layer=mapnik&marker=${farmerDetail.latitude},${farmerDetail.longitude}`}

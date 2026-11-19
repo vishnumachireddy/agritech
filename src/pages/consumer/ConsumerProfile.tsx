@@ -81,17 +81,17 @@ const ConsumerProfile = () => {
 
   return (
     <div className="space-y-6 animate-fade-in max-w-lg">
-      <h1 className="text-xl font-display font-bold">Profile</h1>
+      <h1 className="text-xl sm:text-2xl font-display font-bold">Profile</h1>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Account Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex justify-between text-sm"><span className="text-muted-foreground">Full Name</span><span>{profile.full_name}</span></div>
-          <div className="flex justify-between text-sm"><span className="text-muted-foreground">Email</span><span>{profile.email}</span></div>
-          <div className="flex justify-between text-sm"><span className="text-muted-foreground">Region</span><span>{profile.region || "Not set"}</span></div>
-          <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Orders</span><span>{orderCount}</span></div>
+          <div className="flex justify-between text-xs sm:text-sm"><span className="text-muted-foreground">Full Name</span><span className="font-medium text-foreground">{profile.full_name}</span></div>
+          <div className="flex justify-between text-xs sm:text-sm"><span className="text-muted-foreground">Email</span><span className="font-medium text-foreground">{profile.email}</span></div>
+          <div className="flex justify-between text-xs sm:text-sm"><span className="text-muted-foreground">Region</span><span className="font-medium text-foreground">{profile.region || "Not set"}</span></div>
+          <div className="flex justify-between text-xs sm:text-sm"><span className="text-muted-foreground">Total Orders</span><span className="font-medium text-foreground">{orderCount}</span></div>
         </CardContent>
       </Card>
 
@@ -107,30 +107,31 @@ const ConsumerProfile = () => {
               placeholder="Enter your full delivery address"
               value={deliveryAddress}
               onChange={(e) => setDeliveryAddress(e.target.value)}
+              className="h-10 text-sm"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="lat">Latitude</Label>
-              <Input id="lat" type="number" step="any" placeholder="e.g. 28.6139" value={latitude} onChange={(e) => setLatitude(e.target.value)} />
+              <Input id="lat" type="number" step="any" placeholder="e.g. 28.6139" value={latitude} onChange={(e) => setLatitude(e.target.value)} className="h-10 text-sm" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="lng">Longitude</Label>
-              <Input id="lng" type="number" step="any" placeholder="e.g. 77.209" value={longitude} onChange={(e) => setLongitude(e.target.value)} />
+              <Input id="lng" type="number" step="any" placeholder="e.g. 77.209" value={longitude} onChange={(e) => setLongitude(e.target.value)} className="h-10 text-sm" />
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={detectLocation} disabled={detectingLocation} className="gap-2">
+          <Button variant="outline" size="sm" onClick={detectLocation} disabled={detectingLocation} className="w-full sm:w-auto gap-2 h-10 touch-target">
             {detectingLocation ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
             Detect My Location
           </Button>
-          <Button onClick={handleSave} disabled={saving} className="w-full gap-2">
+          <Button onClick={handleSave} disabled={saving} className="w-full gap-2 h-11 touch-target">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Changes
           </Button>
         </CardContent>
       </Card>
 
-      <Button variant="destructive" onClick={handleLogout} className="gap-2">
+      <Button variant="destructive" onClick={handleLogout} className="w-full sm:w-auto gap-2 h-10 touch-target">
         <LogOut className="w-4 h-4" /> Logout
       </Button>
     </div>

@@ -486,18 +486,18 @@ const DemandSupply = () => {
     <div className="animate-fade-in space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-primary flex items-center gap-2">
-            <Sprout className="w-6 h-6 text-primary" /> Market Demand & Production Hub
+          <h1 className="text-xl sm:text-2xl font-display font-bold text-primary flex items-center gap-2">
+            <Sprout className="w-6 h-6 text-primary flex-shrink-0" /> Market Demand & Production Hub
           </h1>
-          <p className="text-sm text-muted-foreground">Manage your crop production batches, publish harvest availability, and meet buyer demand</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">Manage your crop production batches, publish harvest availability, and meet buyer demand</p>
         </div>
-        <Button onClick={() => setShowPublishModal(true)} size="sm" className="gap-1.5 shadow-sm">
+        <Button onClick={() => setShowPublishModal(true)} size="sm" className="w-full sm:w-auto gap-1.5 shadow-sm touch-target">
           <Plus className="w-4 h-4" /> Publish Production Availability
         </Button>
       </div>
 
       {/* Info banner */}
-      <div className="bg-card rounded-xl p-6 card-shadow border border-border grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+      <div className="bg-card rounded-xl p-4 sm:p-6 card-shadow border border-border grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 text-center">
         {[
           { icon: AlertCircle, label: "Demand-Driven", desc: "Produce exactly what the market needs for guaranteed sales.", color: "text-primary" },
           { icon: ArrowRight, label: "Direct Connect", desc: "No middlemen. Connect directly with bulk purchasers.", color: "text-foreground" },
@@ -512,7 +512,7 @@ const DemandSupply = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border overflow-x-auto">
+      <div className="flex border-b border-border overflow-x-auto no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
         {[
           { key: "production" as const, label: "My Production Availability", icon: Sprout },
           { key: "market_demand" as const, label: "Market Demand", icon: Package },
@@ -522,10 +522,10 @@ const DemandSupply = () => {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${tab === t.key ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${tab === t.key ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
           >
-            <t.icon className="w-4 h-4" /> {t.label}
+            <t.icon className="w-4 h-4 flex-shrink-0" /> {t.label}
           </button>
         ))}
       </div>
@@ -765,7 +765,7 @@ const DemandSupply = () => {
 
       {/* Publish Production Batch Modal */}
       <Dialog open={showPublishModal} onOpenChange={setShowPublishModal}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="w-[95vw] sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sprout className="w-5 h-5 text-primary" /> Publish Crop Production Availability
@@ -775,7 +775,7 @@ const DemandSupply = () => {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handlePublishProduction} className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="crop_name_input">Crop Name *</Label>
                 <Input
@@ -797,7 +797,7 @@ const DemandSupply = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="exp_qty_input">Expected Quantity *</Label>
                 <Input
@@ -826,7 +826,7 @@ const DemandSupply = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="harvest_date_input">Expected Harvest Date *</Label>
                 <Input
@@ -852,7 +852,7 @@ const DemandSupply = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="loc_input">Farm Location *</Label>
                 <Input
@@ -877,7 +877,7 @@ const DemandSupply = () => {
               </div>
             </div>
 
-            <DialogFooter className="pt-2">
+            <DialogFooter className="pt-2 flex-col-reverse sm:flex-row gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setShowPublishModal(false)}>
                 Cancel
               </Button>
@@ -892,7 +892,7 @@ const DemandSupply = () => {
 
       {/* Inline Quantity Update Modal */}
       <Dialog open={!!editingCrop} onOpenChange={(open) => !open && setEditingCrop(null)}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="w-[95vw] sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit3 className="w-5 h-5 text-primary" /> Update Available Quantity
@@ -921,7 +921,7 @@ const DemandSupply = () => {
                 />
               </div>
 
-              <DialogFooter className="pt-2">
+              <DialogFooter className="pt-2 flex-col-reverse sm:flex-row gap-2">
                 <Button variant="outline" size="sm" onClick={() => setEditingCrop(null)}>
                   Cancel
                 </Button>
@@ -937,7 +937,7 @@ const DemandSupply = () => {
 
       {/* Commitment Modal */}
       <Dialog open={!!selectedDemand} onOpenChange={(open) => !open && setSelectedDemand(null)}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="w-[95vw] sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Commit to Production</DialogTitle>
             <DialogDescription>
@@ -971,7 +971,7 @@ const DemandSupply = () => {
               </div>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setSelectedDemand(null)}>Cancel</Button>
             <Button onClick={handleCommit} disabled={committing || !commitmentQuantity}>
               {committing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Confirm Commitment"}

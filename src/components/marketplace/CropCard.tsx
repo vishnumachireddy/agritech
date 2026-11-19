@@ -26,11 +26,12 @@ interface CropCardProps {
 const CropCard = ({ item, onBuyNow, onBulkOrder }: CropCardProps) => (
   <Card className="hover:shadow-md transition-shadow">
     <CardHeader className="pb-2">
-      <div className="flex items-center justify-between">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Wheat className="w-4 h-4 text-primary" /> {item.crop_name}
+      <div className="flex items-start justify-between gap-1.5 flex-wrap">
+        <CardTitle className="text-sm sm:text-base flex items-center gap-1.5 min-w-0">
+          <Wheat className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="truncate">{item.crop_name}</span>
         </CardTitle>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 flex-wrap">
           <Badge variant="secondary" className="text-[10px]">{item.farming_type}</Badge>
           {item.demand_level === "high" ? (
             <Badge className="bg-orange-500/15 text-orange-600 border-orange-500/30 text-[10px] gap-0.5">
@@ -43,9 +44,9 @@ const CropCard = ({ item, onBuyNow, onBulkOrder }: CropCardProps) => (
           )}
         </div>
       </div>
-      <p className="text-sm text-muted-foreground">{item.farmer_name}</p>
+      <p className="text-xs sm:text-sm text-muted-foreground">{item.farmer_name}</p>
     </CardHeader>
-    <CardContent className="space-y-2 text-sm">
+    <CardContent className="space-y-2 text-xs sm:text-sm">
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1 text-muted-foreground"><MapPin className="w-3.5 h-3.5" /> Region</span>
         <span>{item.region || "N/A"}</span>
@@ -64,11 +65,11 @@ const CropCard = ({ item, onBuyNow, onBulkOrder }: CropCardProps) => (
           <span>{item.distance_km.toFixed(1)} km away</span>
         </div>
       )}
-      <div className="flex gap-2 mt-2">
-        <Button size="sm" className="flex-1" onClick={() => onBuyNow(item)}>
+      <div className="flex gap-2 pt-1">
+        <Button size="sm" className="flex-1 h-9 touch-target" onClick={() => onBuyNow(item)}>
           <ShoppingCart className="w-3.5 h-3.5 mr-1" /> Buy Now
         </Button>
-        <Button size="sm" variant="outline" className="flex-1" onClick={() => onBulkOrder(item)}>
+        <Button size="sm" variant="outline" className="flex-1 h-9 touch-target" onClick={() => onBulkOrder(item)}>
           Bulk Order
         </Button>
       </div>

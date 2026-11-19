@@ -117,13 +117,16 @@ const MyOrders = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-bold text-foreground">My Orders</h1>
+      <div>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">My Orders</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Track and view history for all your produce purchases</p>
+      </div>
 
       {loading ? (
-        <p className="text-muted-foreground">Loading...</p>
+        <p className="text-muted-foreground text-sm">Loading...</p>
       ) : orders.length === 0 ? (
         <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
+          <CardContent className="py-8 text-center text-muted-foreground text-sm">
             No orders yet. Start shopping from the Agri Market!
           </CardContent>
         </Card>
@@ -135,19 +138,19 @@ const MyOrders = () => {
               className="cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => navigate(`/consumer/orders/${order.id}`)}
             >
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium">Order #{order.id.slice(0, 8)}</p>
-                  <Badge variant={getStatusColor(order.status)}>
+              <CardContent className="p-3.5 sm:p-4">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-xs sm:text-sm font-medium">Order #{order.id.slice(0, 8)}</p>
+                  <Badge variant={getStatusColor(order.status)} className="text-[10px] sm:text-xs">
                     {order.status.replace(/_/g, " ")}
                   </Badge>
                 </div>
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>{order.crop_name} • {order.quantity} kg</span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs sm:text-sm text-muted-foreground">
+                  <span className="truncate">{order.crop_name} • {order.quantity} kg</span>
                   <span className="font-semibold text-foreground">₹{order.total_price}</span>
                 </div>
-                <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                  <span>Farmer: {order.farmer_name}</span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] sm:text-xs text-muted-foreground mt-1.5 pt-1.5 border-t border-border/40">
+                  <span className="truncate">Farmer: {order.farmer_name}</span>
                   <span>{new Date(order.created_at).toLocaleDateString()}</span>
                 </div>
               </CardContent>

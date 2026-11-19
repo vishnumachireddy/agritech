@@ -594,16 +594,16 @@ const Weather = () => {
           </div>
 
           {/* Current Conditions Card */}
-          <div className="agri-gradient-warm rounded-2xl p-6 sm:p-8 text-primary-foreground grid grid-cols-1 lg:grid-cols-2 gap-6 shadow-md">
-            <div className="flex items-center gap-6">
-              <span className="text-6xl sm:text-7xl">{getWeatherEmoji(weather.current.weather_code)}</span>
+          <div className="agri-gradient-warm rounded-2xl p-4 sm:p-6 md:p-8 text-primary-foreground grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 shadow-md">
+            <div className="flex items-center gap-4 sm:gap-6">
+              <span className="text-5xl sm:text-7xl shrink-0">{getWeatherEmoji(weather.current.weather_code)}</span>
               <div>
                 <p className="text-xs uppercase tracking-wider opacity-80">Local Current Weather</p>
-                <p className="text-5xl sm:text-6xl font-display font-bold">{Math.round(weather.current.temperature)}°C</p>
-                <p className="text-sm opacity-90 mt-1 font-medium">• {weather.current.condition}</p>
+                <p className="text-4xl sm:text-6xl font-display font-bold">{Math.round(weather.current.temperature)}°C</p>
+                <p className="text-xs sm:text-sm opacity-90 mt-1 font-medium">• {weather.current.condition}</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 bg-primary-foreground/10 rounded-xl p-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 bg-primary-foreground/10 rounded-xl p-3 sm:p-4">
               {[
                 { label: "Humidity", value: `${weather.current.humidity}%`, icon: Droplets },
                 { label: "Wind Speed", value: `${weather.current.wind_speed} km/h`, icon: Wind },
@@ -614,11 +614,11 @@ const Weather = () => {
                   icon: Eye,
                 },
               ].map((i) => (
-                <div key={i.label} className="flex items-center gap-2.5">
+                <div key={i.label} className="flex items-center gap-2 sm:gap-2.5 min-w-0">
                   <i.icon className="w-4 h-4 opacity-80 shrink-0" />
                   <div className="min-w-0">
                     <p className="text-[10px] uppercase opacity-70 truncate">{i.label}</p>
-                    <p className="font-display font-bold text-sm truncate">{i.value}</p>
+                    <p className="font-display font-bold text-xs sm:text-sm truncate">{i.value}</p>
                   </div>
                 </div>
               ))}
@@ -626,7 +626,7 @@ const Weather = () => {
           </div>
 
           {/* 5-Day Forecast */}
-          <div className="bg-card rounded-xl p-6 card-shadow border border-border">
+          <div className="bg-card rounded-xl p-4 sm:p-6 card-shadow border border-border">
             <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4">
               5-Day Hyper-Local Forecast
             </h2>
@@ -771,7 +771,7 @@ const Weather = () => {
             </div>
 
             {/* Interactive Dispatch Buttons */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 pt-1">
               <Button
                 size="sm"
                 variant="default"
@@ -789,7 +789,7 @@ const Weather = () => {
                       "Sudden thunderstorm cloudburst detected near your field. Open drainage trenches immediately, secure nursery covers, and postpone drone spraying.",
                   })
                 }
-                className="text-xs h-8 gap-1.5 bg-red-600 hover:bg-red-700 text-white"
+                className="text-xs h-9 sm:h-8 gap-1.5 bg-red-600 hover:bg-red-700 text-white w-full sm:w-auto"
               >
                 {sendingAlert ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 Send Sudden Weather Alert to Registered Email
@@ -812,7 +812,7 @@ const Weather = () => {
                       "Torrential rain detected across your mandal. Check bunds and drainage outlets to avoid root suffocation.",
                   })
                 }
-                className="text-xs h-8 gap-1 border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+                className="text-xs h-9 sm:h-8 gap-1 border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 w-full sm:w-auto"
               >
                 💧 Test Heavy Downpour Alert
               </Button>
@@ -834,7 +834,7 @@ const Weather = () => {
                       "Gale-force wind gusts exceeding 40 km/h detected. Halt all aerial and ground spraying immediately to prevent chemical drift.",
                   })
                 }
-                className="text-xs h-8 gap-1 border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10"
+                className="text-xs h-9 sm:h-8 gap-1 border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 w-full sm:w-auto"
               >
                 💨 Test Gale Wind Alert
               </Button>

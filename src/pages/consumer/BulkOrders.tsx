@@ -540,45 +540,45 @@ const BulkOrders = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
-            <Package className="w-6 h-6 text-primary" />
+          <h1 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2">
+            <Package className="w-6 h-6 text-primary flex-shrink-0" />
             {language === "te" ? "బల్క్ ఆర్డర్లు & రైతు ఉత్పత్తి మార్కెట్" : "Bulk Orders & Farmer Production"}
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Discover verified farmer harvest batches, view real-time availability, and secure direct bulk contracts.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={() => setShowForm(true)} size="sm" variant="outline" className="gap-2 shadow-sm">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button onClick={() => setShowForm(true)} size="sm" variant="outline" className="w-full sm:w-auto gap-2 shadow-sm touch-target">
             <Plus className="w-4 h-4" /> Custom Demand Request
           </Button>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-border gap-2">
+      <div className="flex border-b border-border gap-2 overflow-x-auto no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
         <button
           onClick={() => setActiveTab("listings")}
-          className={`pb-3 px-4 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
+          className={`pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
             activeTab === "listings"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Sprout className="w-4 h-4" /> Farmer Production Listings
+          <Sprout className="w-4 h-4 flex-shrink-0" /> Farmer Production Listings
           <Badge variant="secondary" className="text-xs px-1.5 py-0">
             {farmerListings.length}
           </Badge>
         </button>
         <button
           onClick={() => setActiveTab("contracts")}
-          className={`pb-3 px-4 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
+          className={`pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
             activeTab === "contracts"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
-          <ShoppingCart className="w-4 h-4" /> My Bulk Contracts
+          <ShoppingCart className="w-4 h-4 flex-shrink-0" /> My Bulk Contracts
           <Badge variant="secondary" className="text-xs px-1.5 py-0">
             {orders.length}
           </Badge>
@@ -798,7 +798,7 @@ const BulkOrders = () => {
 
       {/* Direct Order from Farmer Modal */}
       <Dialog open={!!selectedFarmerListing} onOpenChange={(open) => !open && setSelectedFarmerListing(null)}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="w-[95vw] sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5 text-primary" /> Place Bulk Contract Order
@@ -850,7 +850,7 @@ const BulkOrders = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="deliv_start">Target Delivery Start</Label>
                   <Input
@@ -880,7 +880,7 @@ const BulkOrders = () => {
                 </div>
               )}
 
-              <DialogFooter className="pt-2">
+              <DialogFooter className="pt-2 flex-col-reverse sm:flex-row gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => setSelectedFarmerListing(null)}>
                   Cancel
                 </Button>
@@ -896,7 +896,7 @@ const BulkOrders = () => {
 
       {/* Fulfillment Update Dialog */}
       <Dialog open={!!editingOrder} onOpenChange={(open) => !open && setEditingOrder(null)}>
-        <DialogContent className="sm:max-w-[420px]">
+        <DialogContent className="w-[95vw] sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="w-5 h-5 text-primary" /> Update Fulfilled Quantity
@@ -950,7 +950,7 @@ const BulkOrders = () => {
               )}
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <Button variant="outline" size="sm" onClick={() => setEditingOrder(null)}>
               Cancel
             </Button>
@@ -968,12 +968,12 @@ const BulkOrders = () => {
 
       {/* New Bulk Order Form Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Custom Bulk Demand Request</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreateOrder} className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="crop_name">Crop Name *</Label>
                 <Input
@@ -996,7 +996,7 @@ const BulkOrders = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="quantity">Total Required Quantity *</Label>
                 <Input
@@ -1025,7 +1025,7 @@ const BulkOrders = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="delivery_start">Expected Delivery Start</Label>
                 <Input
@@ -1046,7 +1046,7 @@ const BulkOrders = () => {
               </div>
             </div>
 
-            <DialogFooter className="pt-2">
+            <DialogFooter className="pt-2 flex-col-reverse sm:flex-row gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(false)}>
                 Cancel
               </Button>

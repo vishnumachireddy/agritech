@@ -33,39 +33,39 @@ const MarketplaceFilters = ({
   crops, regions, farmingTypes,
 }: FiltersProps) => (
   <div className="space-y-3">
-    <div className="flex flex-wrap items-end gap-3">
-      <div className="relative w-64">
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+      <div className="relative w-full sm:w-64">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          className="pl-9"
+          className="pl-9 h-10 w-full"
           placeholder="Search crop, region, farmer..."
           value={search}
           onChange={(e) => onSearch(e.target.value)}
         />
       </div>
       <Select value={cropFilter} onValueChange={onCropFilter}>
-        <SelectTrigger className="w-[150px]"><SelectValue placeholder="Crop" /></SelectTrigger>
+        <SelectTrigger className="w-[calc(50%-4px)] sm:w-[140px] h-10"><SelectValue placeholder="Crop" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Crops</SelectItem>
           {crops.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={regionFilter} onValueChange={onRegionFilter}>
-        <SelectTrigger className="w-[150px]"><SelectValue placeholder="Region" /></SelectTrigger>
+        <SelectTrigger className="w-[calc(50%-4px)] sm:w-[140px] h-10"><SelectValue placeholder="Region" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Regions</SelectItem>
           {regions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={typeFilter} onValueChange={onTypeFilter}>
-        <SelectTrigger className="w-[150px]"><SelectValue placeholder="Farming Type" /></SelectTrigger>
+        <SelectTrigger className="w-[calc(50%-4px)] sm:w-[140px] h-10"><SelectValue placeholder="Farming Type" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Types</SelectItem>
           {farmingTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={sortBy} onValueChange={onSortBy}>
-        <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="w-[calc(50%-4px)] sm:w-[170px] h-10"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="price_asc">Price: Low → High</SelectItem>
           <SelectItem value="price_desc">Price: High → Low</SelectItem>
@@ -75,7 +75,7 @@ const MarketplaceFilters = ({
       </Select>
     </div>
     {maxPrice > 0 && (
-      <div className="flex items-center gap-4 max-w-md">
+      <div className="flex items-center gap-3 sm:gap-4 w-full max-w-md pt-1">
         <Label className="text-xs text-muted-foreground whitespace-nowrap">Price Range</Label>
         <Slider
           min={0}

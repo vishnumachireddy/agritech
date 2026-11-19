@@ -132,14 +132,14 @@ const DemandTrends = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-display font-bold text-foreground">Demand & Trends</h1>
+      <h1 className="text-xl sm:text-2xl font-display font-bold text-foreground">Demand & Trends</h1>
 
       {/* Price Trends */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
           <CardTitle className="text-base">Price Trends</CardTitle>
           <Select value={selectedCrop} onValueChange={setSelectedCrop}>
-            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[180px] h-10"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Crops</SelectItem>
               {cropNames.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -150,15 +150,17 @@ const DemandTrends = () => {
           {priceTrends.length === 0 ? (
             <p className="text-muted-foreground text-sm py-4 text-center">No price data available yet. Trends appear as orders are placed.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={priceTrends}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="date" className="text-xs" tick={{ fontSize: 11 }} />
-                <YAxis className="text-xs" tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                <Line type="monotone" dataKey="avg_price" name="Avg ₹/kg" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="w-full h-[220px] sm:h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={priceTrends}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="date" className="text-xs" tick={{ fontSize: 11 }} />
+                  <YAxis className="text-xs" tick={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                  <Line type="monotone" dataKey="avg_price" name="Avg ₹/kg" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -173,12 +175,14 @@ const DemandTrends = () => {
             ) : (
               <div className="space-y-3">
                 {demandCrops.map((item) => (
-                  <div key={item.crop} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{item.crop}</p>
+                  <div key={item.crop} className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{item.crop}</p>
                       <p className="text-xs text-muted-foreground">{item.count} orders</p>
                     </div>
-                    {getDemandBadge(item.level)}
+                    <div className="flex-shrink-0">
+                      {getDemandBadge(item.level)}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -193,15 +197,17 @@ const DemandTrends = () => {
             {regionData.length === 0 ? (
               <p className="text-muted-foreground text-sm text-center py-4">No regional data yet.</p>
             ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={regionData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="region" type="category" width={100} tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                  <Bar dataKey="orders" name="Orders" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="w-full h-[200px] sm:h-[220px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={regionData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis type="number" tick={{ fontSize: 11 }} />
+                    <YAxis dataKey="region" type="category" width={85} tick={{ fontSize: 10 }} />
+                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                    <Bar dataKey="orders" name="Orders" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </CardContent>
         </Card>

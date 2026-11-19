@@ -89,18 +89,18 @@ const Dashboard = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Hero */}
-      <div className="agri-gradient rounded-2xl p-8 text-primary-foreground">
+      <div className="agri-gradient rounded-2xl p-5 sm:p-6 md:p-8 text-primary-foreground">
         <span className="inline-block px-3 py-1 bg-primary-foreground/20 rounded-full text-xs font-semibold tracking-wider uppercase mb-3">
           Community Intelligence Hub
         </span>
-        <h1 className="text-3xl font-display font-bold mb-2">Welcome{user?.full_name ? `, ${user.full_name}` : ""} to AgriAssist</h1>
-        <p className="text-primary-foreground/80 max-w-lg">
+        <h1 className="text-2xl sm:text-3xl font-display font-bold mb-2">Welcome{user?.full_name ? `, ${user.full_name}` : ""} to AgriAssist</h1>
+        <p className="text-primary-foreground/80 max-w-lg text-sm sm:text-base">
           Your smart farming companion. Monitor crop health, get AI-powered insights,
           and optimize your farm's productivity.
         </p>
-        <div className="mt-4 flex items-center gap-2 text-sm">
-          <span className="text-primary-foreground/70">District Regional Insights</span>
-          <span className="font-display font-bold text-lg">{farmerRegion}</span>
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-primary-foreground/70">District Regional Insights:</span>
+          <span className="font-display font-bold text-base sm:text-lg">{farmerRegion}</span>
         </div>
       </div>
 
@@ -119,11 +119,11 @@ const Dashboard = () => {
       </div>
 
       {/* Government Schemes */}
-      <div className="bg-card rounded-xl p-6 card-shadow border border-border">
+      <div className="bg-card rounded-xl p-4 sm:p-6 card-shadow border border-border">
         <div className="flex items-center gap-3 mb-4">
-          <Shield className="w-8 h-8 text-primary" />
+          <Shield className="w-7 h-7 sm:w-8 sm:h-8 text-primary shrink-0" />
           <div>
-            <h2 className="font-display font-bold text-lg uppercase tracking-wide">Government Schemes</h2>
+            <h2 className="font-display font-bold text-base sm:text-lg uppercase tracking-wide">Government Schemes</h2>
             <p className="text-xs text-muted-foreground">Subsidies & Financial Aid</p>
           </div>
         </div>
@@ -143,33 +143,33 @@ const Dashboard = () => {
       {/* Bottom row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Decision Score */}
-        <div className="lg:col-span-2 bg-card rounded-xl p-6 card-shadow border border-border">
-          <div className="flex items-center gap-4">
+        <div className="lg:col-span-2 bg-card rounded-xl p-4 sm:p-6 card-shadow border border-border">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h3 className="font-display font-bold uppercase tracking-wide">Farmer Decision Score™</h3>
+              <h3 className="font-display font-bold uppercase tracking-wide text-base">Farmer Decision Score™</h3>
               <p className="text-sm text-muted-foreground">Status: <span className="text-primary font-semibold">{stats.alerts === 0 ? "EXCELLENT" : "NEEDS ATTENTION"}</span></p>
               <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 bg-accent text-primary text-xs font-medium rounded-full">
                 📈 Based on real-time data
               </span>
             </div>
-            <div className="ml-auto flex flex-col items-center">
-              <div className="w-20 h-20 rounded-xl border-2 border-primary flex flex-col items-center justify-center">
+            <div className="flex items-center gap-3">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 border-primary flex flex-col items-center justify-center shrink-0">
                 <Heart className="w-4 h-4 text-primary mb-1" />
-                <span className="text-2xl font-display font-bold text-primary">
+                <span className="text-xl sm:text-2xl font-display font-bold text-primary">
                   {stats.alerts === 0 ? "100%" : `${Math.max(0, 100 - stats.alerts * 10)}%`}
                 </span>
               </div>
+              <button className="px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted h-fit">
+                WHY? <ChevronDown className="w-3 h-3 inline ml-1" />
+              </button>
             </div>
-            <button className="ml-4 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted">
-              WHY? <ChevronDown className="w-3 h-3 inline ml-1" />
-            </button>
           </div>
         </div>
 
         {/* Revenue Card */}
-        <div className="bg-card rounded-xl p-6 card-shadow border border-border">
+        <div className="bg-card rounded-xl p-4 sm:p-6 card-shadow border border-border">
           <p className="text-xs font-semibold text-agri-orange uppercase tracking-wider">Total Revenue</p>
-          <p className="text-3xl font-display font-bold text-primary mt-2">₹{stats.revenue.toLocaleString()}</p>
+          <p className="text-2xl sm:text-3xl font-display font-bold text-primary mt-2">₹{stats.revenue.toLocaleString()}</p>
           <p className="text-xs text-muted-foreground mt-2">From {stats.activeOrders} active + delivered orders.</p>
           <div className="mt-4 flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Efficiency Rating</span>
@@ -182,12 +182,12 @@ const Dashboard = () => {
 
       {/* Decision Trace */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 bg-card rounded-xl p-6 card-shadow border border-border">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-display font-bold uppercase tracking-wide">Decision Trace Engine™</h3>
+        <div className="lg:col-span-2 bg-card rounded-xl p-4 sm:p-6 card-shadow border border-border">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h3 className="font-display font-bold uppercase tracking-wide text-sm sm:text-base">Decision Trace Engine™</h3>
             <span className="px-2 py-1 bg-accent text-primary text-xs font-medium rounded-full">Season Analysis</span>
           </div>
-          <div className="flex gap-8 mb-4">
+          <div className="flex flex-wrap gap-6 sm:gap-8 mb-4">
             <div>
               <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Regret Score™</p>
               <p className="font-display font-bold text-xl">{stats.alerts > 0 ? stats.alerts * 5 : 15} <span className="text-sm text-muted-foreground font-normal">/ 100</span></p>
@@ -197,17 +197,17 @@ const Dashboard = () => {
               <p className="text-sm font-medium text-foreground">"Learning together"</p>
             </div>
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { label: "Crops", value: `${stats.totalCrops} registered`, color: "bg-primary" },
               { label: "Revenue", value: `₹${stats.revenue.toLocaleString()}`, color: "bg-agri-blue" },
               { label: "Orders", value: `${stats.activeOrders} active`, color: stats.alerts > 0 ? "bg-agri-red" : "bg-primary" },
               { label: "Region", value: farmerRegion, color: "bg-primary" },
             ].map((item) => (
-              <div key={item.label} className="text-center">
-                <div className={`w-6 h-6 rounded-full ${item.color} mx-auto mb-1`} />
+              <div key={item.label} className="text-center p-2 rounded-lg bg-muted/30">
+                <div className={`w-5 h-5 rounded-full ${item.color} mx-auto mb-1`} />
                 <p className="text-[10px] uppercase text-muted-foreground tracking-wider">{item.label}</p>
-                <p className="text-xs font-semibold text-foreground">{item.value}</p>
+                <p className="text-xs font-semibold text-foreground truncate">{item.value}</p>
               </div>
             ))}
           </div>

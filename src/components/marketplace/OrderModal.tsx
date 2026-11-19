@@ -157,26 +157,26 @@ const OrderModal = ({ item, mode, userId, onClose }: OrderModalProps) => {
 
   return (
     <Dialog open={!!item} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent>
+      <DialogContent className="w-[95vw] sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{mode === "buy" ? "Buy" : "Bulk Order"} — {item.crop_name}</DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">{mode === "buy" ? "Buy" : "Bulk Order"} — {item.crop_name}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="text-sm text-muted-foreground">
+          <div className="text-xs sm:text-sm text-muted-foreground">
             Farmer: <span className="text-foreground font-medium">{item.farmer_name}</span>
           </div>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-xs sm:text-sm text-muted-foreground">
             Price: <span className="text-foreground font-medium">₹{item.expected_price}/kg</span>
           </div>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-xs sm:text-sm text-muted-foreground">
             Available: <span className="text-foreground font-medium">{item.total_yield} kg</span>
           </div>
           <div className="space-y-2">
-            <Label>Quantity (kg)</Label>
-            <Input type="number" min="1" step="1" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="Enter quantity" />
+            <Label className="text-xs sm:text-sm">Quantity (kg)</Label>
+            <Input type="number" min="1" step="1" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="Enter quantity" className="h-10 text-sm" />
           </div>
           {total > 0 && (
-            <div className="bg-muted rounded-md p-3 text-sm space-y-1">
+            <div className="bg-muted rounded-md p-3 text-xs sm:text-sm space-y-1">
               <div className="flex justify-between">
                 <span>Total Price</span>
                 <span className="font-bold text-foreground">₹{total.toFixed(2)}</span>
@@ -188,9 +188,9 @@ const OrderModal = ({ item, mode, userId, onClose }: OrderModalProps) => {
             </div>
           )}
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={submitting}>
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+          <Button variant="outline" onClick={onClose} className="h-9 touch-target">Cancel</Button>
+          <Button onClick={handleSubmit} disabled={submitting} className="h-9 touch-target">
             {submitting ? "Processing..." : "Confirm"}
           </Button>
         </DialogFooter>

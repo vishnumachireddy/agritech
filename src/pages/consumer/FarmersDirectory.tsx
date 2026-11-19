@@ -67,35 +67,35 @@ const FarmersDirectory = () => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Registered Farmers</h1>
-        <p className="text-muted-foreground text-sm">Browse all farmers and their produce details</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Registered Farmers</h1>
+        <p className="text-muted-foreground text-xs sm:text-sm">Browse all farmers and their produce details</p>
       </div>
       <Input
         placeholder="Search by name, crop, or region..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="max-w-md"
+        className="w-full max-w-md h-10 text-xs sm:text-sm"
       />
       {loading ? (
-        <p className="text-muted-foreground">Loading farmers...</p>
+        <p className="text-muted-foreground text-sm">Loading farmers...</p>
       ) : filtered.length === 0 ? (
-        <p className="text-muted-foreground">No farmers found.</p>
+        <p className="text-muted-foreground text-sm">No farmers found.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((f) => (
             <Card key={f.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">{f.full_name}</CardTitle>
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <CardTitle className="text-base sm:text-lg">{f.full_name}</CardTitle>
+                <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
                   <MapPin className="w-3.5 h-3.5" /> {f.region || "N/A"}
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 text-sm">
+              <CardContent className="space-y-2 text-xs sm:text-sm">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1"><Wheat className="w-3.5 h-3.5" /> Primary Crop</span>
-                  <Badge variant="secondary">{f.primary_crop}</Badge>
+                  <Badge variant="secondary" className="text-[10px] sm:text-xs">{f.primary_crop}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1"><Ruler className="w-3.5 h-3.5" /> Land Area</span>
@@ -111,15 +111,15 @@ const FarmersDirectory = () => {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5" /> Price/kg</span>
-                  <span>₹{f.expected_price}</span>
+                  <span className="font-semibold text-foreground">₹{f.expected_price}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1"><Droplets className="w-3.5 h-3.5" /> Water</span>
-                  <Badge variant="outline">{f.water_availability}</Badge>
+                  <Badge variant="outline" className="text-[10px] sm:text-xs">{f.water_availability}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Farming Type</span>
-                  <Badge>{f.farming_type}</Badge>
+                  <Badge className="text-[10px] sm:text-xs">{f.farming_type}</Badge>
                 </div>
               </CardContent>
             </Card>

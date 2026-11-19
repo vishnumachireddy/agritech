@@ -124,25 +124,25 @@ const AgriChrono = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#050B05] text-white p-6 pb-20 font-sans overflow-x-hidden relative">
+        <div className="min-h-screen bg-[#050B05] text-white p-3 sm:p-6 pb-20 font-sans overflow-x-hidden relative">
             {/* Futuristic Background Glows */}
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-agri-green/10 blur-[120px] rounded-full pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-agri-amber/5 blur-[120px] rounded-full pointer-events-none" />
 
             <div className="max-w-7xl mx-auto relative z-10">
-                <header className="mb-10 animate-in fade-in slide-in-from-top duration-700">
-                    <div className="flex items-center gap-4 mb-2">
-                        <div className="p-3 bg-agri-green/20 rounded-2xl border border-agri-green/30">
-                            <Clock className="w-8 h-8 text-agri-green animate-pulse" />
+                <header className="mb-6 sm:mb-10 animate-in fade-in slide-in-from-top duration-700">
+                    <div className="flex items-center gap-3 sm:gap-4 mb-2">
+                        <div className="p-2.5 sm:p-3 bg-agri-green/20 rounded-2xl border border-agri-green/30 flex-shrink-0">
+                            <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-agri-green animate-pulse" />
                         </div>
                         <div>
-                            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-agri-green/50 bg-clip-text text-transparent">
+                            <h1 className="text-2xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-agri-green/50 bg-clip-text text-transparent">
                                 AgriChrono™
                             </h1>
-                            <p className="text-agri-green font-mono text-sm tracking-widest uppercase">Precision Crop Lifecycle Intelligence</p>
+                            <p className="text-agri-green font-mono text-xs sm:text-sm tracking-widest uppercase">Precision Crop Lifecycle Intelligence</p>
                         </div>
                     </div>
-                    <p className="text-muted-foreground ml-[72px]">From seed to harvest, powered by predictive AI timing</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">From seed to harvest, powered by predictive AI timing</p>
                 </header>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -234,45 +234,45 @@ const AgriChrono = () => {
                     {/* RIGHT PANEL: TIMELINE VIEW */}
                     <div className="lg:col-span-8 animate-in slide-in-from-right duration-700">
                         {!isActive ? (
-                            <div className="h-full flex flex-col items-center justify-center p-20 bg-white/5 border border-dashed border-white/10 rounded-3xl text-center">
-                                <div className="w-24 h-24 bg-agri-green/10 rounded-full flex items-center justify-center mb-6">
-                                    <Activity className="w-10 h-10 text-agri-green/50 animate-pulse" />
+                            <div className="h-full flex flex-col items-center justify-center p-6 sm:p-12 md:p-20 bg-white/5 border border-dashed border-white/10 rounded-3xl text-center">
+                                <div className="w-16 h-16 sm:w-24 sm:h-24 bg-agri-green/10 rounded-full flex items-center justify-center mb-4 sm:mb-6">
+                                    <Activity className="w-8 h-8 sm:w-10 sm:h-10 text-agri-green/50 animate-pulse" />
                                 </div>
-                                <h2 className="text-2xl font-bold mb-2">Systems Standby</h2>
-                                <p className="text-muted-foreground max-w-sm">Configure your crop data and click start to generate the AI-driven precision lifecycle timeline.</p>
+                                <h2 className="text-xl sm:text-2xl font-bold mb-2">Systems Standby</h2>
+                                <p className="text-xs sm:text-sm text-muted-foreground max-w-sm">Configure your crop data and click start to generate the AI-driven precision lifecycle timeline.</p>
                             </div>
                         ) : (
-                            <div className="space-y-8">
+                            <div className="space-y-6 sm:space-y-8">
                                 {/* Progress Header */}
                                 <Card className="bg-black/60 border-agri-green/20 backdrop-blur-xl border relative overflow-hidden">
                                     <div className="absolute top-0 left-0 h-1 bg-agri-green animate-[shimmer_2s_infinite]" />
-                                    <CardContent className="py-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                                    <CardContent className="py-4 sm:py-6 flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6">
                                         <div className="flex-1 w-full">
                                             <div className="flex justify-between items-end mb-2">
                                                 <span className="text-xs font-bold text-agri-green uppercase tracking-tighter">Total Growth Progress</span>
-                                                <span className="text-2xl font-black text-white">{currentProgress}%</span>
+                                                <span className="text-xl sm:text-2xl font-black text-white">{currentProgress}%</span>
                                             </div>
                                             <Progress value={currentProgress} className="h-2 bg-white/5" />
                                         </div>
-                                        <div className="flex gap-6 border-l border-white/10 pl-6 h-full text-white">
-                                            <div className="text-center px-4">
+                                        <div className="flex gap-4 sm:gap-6 border-t md:border-t-0 md:border-l border-white/10 pt-4 md:pt-0 pl-0 md:pl-6 w-full md:w-auto justify-around text-white">
+                                            <div className="text-center px-2 sm:px-4">
                                                 <p className="text-[10px] uppercase font-bold text-white/40 mb-1">Current State</p>
                                                 <Badge variant="outline" className="bg-agri-green/10 border-agri-green/30 text-agri-green font-bold">Vegetative</Badge>
                                             </div>
-                                            <div className="text-center px-4">
+                                            <div className="text-center px-2 sm:px-4">
                                                 <p className="text-[10px] uppercase font-bold text-white/40 mb-1">Days Sown</p>
-                                                <p className="text-xl font-bold font-mono">32 <span className="text-xs text-white/40">DAYS</span></p>
+                                                <p className="text-lg sm:text-xl font-bold font-mono">32 <span className="text-xs text-white/40">DAYS</span></p>
                                             </div>
                                         </div>
                                     </CardContent>
                                 </Card>
 
                                 {/* Vertical Timeline */}
-                                <div className="relative pl-8 md:pl-0">
+                                <div className="relative pl-6 md:pl-0">
                                     {/* Central Line */}
-                                    <div className="absolute left-10 md:left-1/2 top-4 bottom-4 w-px bg-gradient-to-b from-agri-green via-agri-amber to-transparent md:-translate-x-px" />
+                                    <div className="absolute left-3 md:left-1/2 top-4 bottom-4 w-px bg-gradient-to-b from-agri-green via-agri-amber to-transparent md:-translate-x-px" />
 
-                                    <div className="space-y-12">
+                                    <div className="space-y-8 sm:space-y-12">
                                         {STAGES_TEMPLATE.map((stage, idx) => {
                                             const isEven = idx % 2 === 0;
                                             const isCompleted = idx < 2;
@@ -284,17 +284,17 @@ const AgriChrono = () => {
                                             return (
                                                 <div key={stage.id} className={`relative flex flex-col md:flex-row items-center ${isEven ? 'md:flex-row-reverse' : ''} group`}>
                                                     {/* Central Dot */}
-                                                    <div className={`absolute left-10 md:left-1/2 w-6 h-6 rounded-full border-4 z-20 md:-translate-x-3 transition-all duration-500 scale-100 group-hover:scale-125
+                                                    <div className={`absolute left-3 -translate-x-1/2 md:left-1/2 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-4 z-20 md:-translate-x-3 transition-all duration-500 scale-100 group-hover:scale-125
                             ${isCompleted ? 'bg-agri-green border-black' : isCurrent ? 'bg-black border-agri-green animate-pulse' : 'bg-zinc-800 border-zinc-700'}`}
                                                     />
 
                                                     {/* Date Indicator (Mobile) */}
-                                                    <div className="md:hidden mb-4 ml-6 text-xs font-bold text-agri-green/80 flex items-center gap-2">
+                                                    <div className="md:hidden mb-2 ml-4 text-xs font-bold text-agri-green/80 flex items-center gap-2">
                                                         <Calendar className="w-3 h-3" /> {calculateDate(days)}
                                                     </div>
 
                                                     {/* Card */}
-                                                    <div className={`w-full md:w-[45%] ${isEven ? 'md:pr-12' : 'md:pl-12'}`}>
+                                                    <div className={`w-full md:w-[45%] pl-4 md:pl-0 ${isEven ? 'md:pr-12' : 'md:pl-12'}`}>
                                                         <Card className={`bg-white/5 border-white/5 transition-all duration-500 group-hover:border-white/20 hover:translate-y-[-4px] overflow-hidden
                               ${isCurrent ? 'ring-2 ring-agri-green/30 shadow-[0_0_30px_rgba(56,163,165,0.15)] bg-white/10' : ''}`}>
 

@@ -131,15 +131,15 @@ const CropGuidance = () => {
         <p className="text-sm text-muted-foreground mt-1">Science-backed machine learning strategies</p>
       </div>
 
-      <div className="flex border-b border-border overflow-x-auto justify-start md:justify-center scrollbar-hide">
+      <div className="flex border-b border-border overflow-x-auto justify-start md:justify-center no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
           >
-            <t.icon className="w-4 h-4" /> {t.label}
+            <t.icon className="w-4 h-4 flex-shrink-0" /> {t.label}
           </button>
         ))}
       </div>
@@ -383,7 +383,7 @@ const TabProfitEstimation = () => {
       <CardHeader><CardTitle>Profit Estimation</CardTitle><CardDescription>Calculate expected harvest margins instantly</CardDescription></CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5"><Label className="text-sm font-semibold">Crop Name</Label><Input value={form.crop_name} onChange={e => setForm({ ...form, crop_name: e.target.value })} className="h-10" /></div>
             <div className="space-y-1.5"><Label className="text-sm font-semibold">Land Size (Acres)</Label><Input type="number" step="0.1" value={form.land_size} onChange={e => setForm({ ...form, land_size: parseFloat(e.target.value) })} className="h-10" /></div>
           </div>
@@ -392,10 +392,10 @@ const TabProfitEstimation = () => {
 
         {result && (
           <div className="mt-8 space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="p-5 bg-muted/30 rounded-xl text-center border-2 border-transparent"><p className="text-xs text-muted-foreground uppercase font-semibold">Est. Revenue</p><p className="font-bold text-xl mt-1 text-primary">₹{(result.expected_revenue).toLocaleString()}</p></div>
-              <div className="p-5 bg-muted/30 rounded-xl text-center border-2 border-transparent"><p className="text-xs text-muted-foreground uppercase font-semibold">Est. Cost</p><p className="font-bold text-xl mt-1 text-agri-red">₹{(result.estimated_cost).toLocaleString()}</p></div>
-              <div className="p-5 bg-primary/5 rounded-xl text-center border-2 border-primary/20"><p className="text-xs text-primary uppercase font-bold">Net Profit</p><p className="font-bold text-2xl mt-1 text-foreground">₹{(result.net_profit).toLocaleString()}</p></div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              <div className="p-4 sm:p-5 bg-muted/30 rounded-xl text-center border-2 border-transparent"><p className="text-xs text-muted-foreground uppercase font-semibold">Est. Revenue</p><p className="font-bold text-lg sm:text-xl mt-1 text-primary">₹{(result.expected_revenue).toLocaleString()}</p></div>
+              <div className="p-4 sm:p-5 bg-muted/30 rounded-xl text-center border-2 border-transparent"><p className="text-xs text-muted-foreground uppercase font-semibold">Est. Cost</p><p className="font-bold text-lg sm:text-xl mt-1 text-agri-red">₹{(result.estimated_cost).toLocaleString()}</p></div>
+              <div className="p-4 sm:p-5 bg-primary/5 rounded-xl text-center border-2 border-primary/20"><p className="text-xs text-primary uppercase font-bold">Net Profit</p><p className="font-bold text-xl sm:text-2xl mt-1 text-foreground">₹{(result.net_profit).toLocaleString()}</p></div>
             </div>
             <div className="p-4 bg-accent/30 rounded-xl flex items-start gap-3 mt-4 border border-border">
               <Lightbulb className="w-5 h-5 text-agri-orange shrink-0 mt-0.5" />
@@ -510,16 +510,16 @@ const TabChat = () => {
   };
 
   return (
-    <Card className="card-shadow border-border h-[600px] flex flex-col">
-      <CardHeader className="py-4 border-b bg-muted/10">
-        <CardTitle className="flex items-center gap-2"><MessageSquare className="w-5 h-5 text-primary" /> AI Advisory Chat</CardTitle>
-        <CardDescription>Direct interactive console utilizing independent ML algorithms</CardDescription>
+    <Card className="card-shadow border-border h-[calc(100dvh-260px)] min-h-[420px] max-h-[650px] flex flex-col">
+      <CardHeader className="py-3 sm:py-4 px-4 sm:px-6 border-b bg-muted/10">
+        <CardTitle className="text-base sm:text-lg flex items-center gap-2"><MessageSquare className="w-5 h-5 text-primary" /> AI Advisory Chat</CardTitle>
+        <CardDescription className="text-xs sm:text-sm">Direct interactive console utilizing independent ML algorithms</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col p-0 overflow-hidden bg-dot-pattern">
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-3 sm:space-y-4">
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm shadow-sm ${m.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-card border border-border rounded-bl-sm'}`}>
+              <div className={`max-w-[88%] sm:max-w-[80%] px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl text-xs sm:text-sm shadow-sm break-words ${m.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-card border border-border rounded-bl-sm'}`}>
                 <p className="whitespace-pre-wrap leading-relaxed">{m.text}</p>
               </div>
             </div>
@@ -527,9 +527,9 @@ const TabChat = () => {
           {loading && <div className="flex justify-start"><div className="bg-card border border-border px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div></div>}
         </div>
 
-        <form onSubmit={handleSend} className="p-4 border-t border-border flex gap-3 bg-card shadow-sm z-10">
-          <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Type a message..." className="flex-1 bg-muted/30 focus-visible:ring-primary h-11" />
-          <Button type="submit" disabled={loading} size="icon" className="h-11 w-11 shrink-0"><Send className="w-5 h-5" /></Button>
+        <form onSubmit={handleSend} className="p-2.5 sm:p-4 border-t border-border flex items-center gap-2 sm:gap-3 bg-card shadow-sm z-10">
+          <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Type a message..." className="flex-1 bg-muted/30 focus-visible:ring-primary h-11 text-xs sm:text-sm" />
+          <Button type="submit" disabled={loading} size="icon" className="h-11 w-11 shrink-0 touch-target"><Send className="w-4 h-4 sm:w-5 sm:h-5" /></Button>
         </form>
       </CardContent>
     </Card>
